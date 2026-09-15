@@ -26,11 +26,18 @@ set-completion. Data + assets are compiled from the sibling `_hh_extract` by `bu
 ## Known issues / warnings
 - Data is an **extract, not golden** — values are decompiled but unverified against the live game.
 - Primary stats are sandbox inputs in P0 (no faithful per-hero/level base yet).
-- Rogue-realm faction insignia frame (engine order 14 vs heroes.json factionIndex 12) — verify the
-  Rogue icon maps correctly; base factions 0–11 are 1:1.
+- **Faction traits have no icon** (colour-only banners). The game's insignia sprites are white
+  silhouettes tinted at runtime, so they render blank as raw PNGs. P1 polish: recolour/tint the
+  insignia (or another emblem source) to ship real faction icons.
 - Any `build-data.mjs` hygiene warnings get parked here as they arise.
 
 ## Session log
 - 2026-09-14: Scaffolded from build-calc-planner. Planning artifacts + skeleton adapted for the HH
   hero build (hero selector, artifact paperdoll, primary-stat table, faction/set xref matrix).
   Pipeline reads `_hh_extract`; palette sampled from game UI art. P0 verified locally; git initialized.
+- 2026-09-14: **Published to GitHub Pages** → https://misterwtheface-oss.github.io/hh-build-calc/
+  (repo `misterwtheface-oss/hh-build-calc`, branch `master`); analytics beacon activated.
+- 2026-09-14: **Fixed icon 404s** — stored icon paths omitted the `assets/` prefix so every image
+  404'd live; now stored page-root-relative (`assets/heroes|artifacts|classes/…`) and checked as-is.
+  Dropped the blank runtime-tinted faction insignia (faction traits are colour-only now). Verified
+  live: art renders.
