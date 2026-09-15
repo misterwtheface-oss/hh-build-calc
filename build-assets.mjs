@@ -7,7 +7,8 @@
     hero portrait      spr_heroportraitROGUE/<index>.png      -> assets/heroes/<index>.png
     artifact icon      spr_artifactO/<artdata[3]>.png          -> assets/artifacts/<frame>.png
     class silhouette   spr_classsilhouettes/<classId+2>.png    -> assets/classes/<frame>.png
-    faction insignia   spr_insignia_/<engineFactionIndex>.png  -> assets/factions/<factionIndex>.png
+  (Faction insignia are white silhouettes the game tints at runtime — they render blank as raw PNGs,
+   so faction traits use their banner colour instead of an icon; no insignia are copied.)
 
   Run BEFORE build-data.mjs so the hygiene guardrails can verify every icon path exists.
   Usage:  node build-assets.mjs
@@ -35,10 +36,6 @@ const artGml = fs.readFileSync(path.join(EXTRACT, "code", "gml", "gml_GlobalScri
 const artRows = extractGmlArray(artGml, "global.artdata = ");
 const artifactFrames = [...new Set(artRows.map((r) => r[3]))];
 
-// faction insignia: heroes.json factionIndex 0–11 == engine order; 12 (Rogue) -> engine 14.
-const factionIdxs = [...new Set(heroArr.map((h) => h.factionIndex))];
-const insigniaFrame = (fi) => (fi < 12 ? fi : 14);
-
 let copied = 0, missing = [];
 function copyFrame(sheet, frame, destDir, destName) {
   const src = path.join(SPRITES, sheet, `${sheet}_${frame}.png`);
@@ -52,7 +49,6 @@ function copyFrame(sheet, frame, destDir, destName) {
 for (const h of heroArr) copyFrame("spr_heroportraitROGUE", h.index, "heroes", String(h.index));
 for (const f of artifactFrames) copyFrame("spr_artifactO", f, "artifacts", String(f));
 for (const c of classArr) copyFrame("spr_classsilhouettes", c.silhouetteFrame, "classes", String(c.silhouetteFrame));
-for (const fi of factionIdxs) copyFrame("spr_insignia_", insigniaFrame(fi), "factions", String(fi));
 
 console.log(`build-assets: copied ${copied} sprite frames into ${ASSETS}/.`);
 if (missing.length) {

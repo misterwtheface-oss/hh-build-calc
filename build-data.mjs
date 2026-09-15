@@ -75,8 +75,9 @@ const factionNames = [...new Set(heroArr.map((h) => h.faction))];
 const factionIdxByName = {};
 for (const h of heroArr) if (!(h.faction in factionIdxByName)) factionIdxByName[h.faction] = h.factionIndex;
 for (const name of factionNames) {
-  const fi = factionIdxByName[name];
-  traits.push({ id: `fac:${slug(name)}`, name, color: FACTION_COLOR[name] || "#888888", icon: `factions/${fi}.png`, kind: "faction", show_in_table: true });
+  // Faction identity is carried by the banner COLOUR. The game's insignia sprites are white
+  // silhouettes tinted at runtime, so they render blank as raw PNGs — icon:null (tinted-emblem = P1).
+  traits.push({ id: `fac:${slug(name)}`, name, color: FACTION_COLOR[name] || "#888888", icon: null, kind: "faction", show_in_table: true });
 }
 for (let sid = 1; sid < SET_NAMES.length; sid++) {
   traits.push({ id: `set:${sid}`, name: `${SET_NAMES[sid]} Set`, color: setColor(sid), icon: null, kind: "set", show_in_table: true, threshold: SET_THRESHOLD[sid] });
@@ -87,7 +88,7 @@ const facTrait = (name) => `fac:${slug(name)}`;
 const classes = classArr.map((c) => ({
   id: c.id, name: c.name, classType: c.classType, faction: c.faction,
   silhouetteFrame: c.silhouetteFrame,
-  icon: `classes/${c.silhouetteFrame}.png`,
+  icon: `assets/classes/${c.silhouetteFrame}.png`,
   traits: c.faction ? [facTrait(c.faction)] : [],
 }));
 const classById = new Map(classes.map((c) => [c.id, c]));
@@ -96,7 +97,7 @@ const classById = new Map(classes.map((c) => [c.id, c]));
 const heroes = heroArr.map((h) => ({
   id: h.index, name: h.name, faction: h.faction, factionIndex: h.factionIndex,
   classId: h.classId, className: h.class, classType: h.classType, race: h.race,
-  portraitFrame: h.index, icon: `heroes/${h.index}.png`,
+  portraitFrame: h.index, icon: `assets/heroes/${h.index}.png`,
   startingSpell: h.startingSpell, masteryUnit: h.masteryUnit, specialtySkill: h.specialtySkill,
   unlockTier: h.unlockTier, unlockable: h.unlockable,
   skilltree: h.skilltree, skillset: h.skillset,
@@ -113,7 +114,7 @@ const artifacts = artRows.map((r) => {
   const effects = [];
   for (const [size, code] of [[s1, e1], [s2, e2]]) if (!(size === 0 && code === 0)) effects.push({ size, code });
   return {
-    id, name, slot, quality, iconFrame: sprite, icon: `artifacts/${sprite}.png`,
+    id, name, slot, quality, iconFrame: sprite, icon: `assets/artifacts/${sprite}.png`,
     setId: setId || 0, effects,
     traits: setId ? [`set:${setId}`] : [],
   };
@@ -128,7 +129,9 @@ for (let sid = 1; sid < SET_NAMES.length; sid++) {
 
 // ═══ GUARDRAILS ═══
 const traitIndex = new Map(traits.map((t) => [t.id, t]));
-const assetMiss = (rel) => !fs.existsSync(path.join(ASSETS_DIR, rel));
+// icon paths are stored page-root-relative (e.g. "assets/heroes/0.png") so the browser resolves
+// them correctly from index.html; check them as-is from the repo root.
+const assetMiss = (rel) => !fs.existsSync(rel);
 
 // dupes
 const seenHero = new Set(); for (const h of heroes) { if (seenHero.has(h.id)) errors.push(`duplicate hero id ${h.id}`); seenHero.add(h.id); }
