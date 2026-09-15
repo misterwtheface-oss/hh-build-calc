@@ -1,0 +1,19 @@
+# --- Hero's Hour Build Calculator ---
+# Rule of thumb: if the SPA doesn't load it at runtime, it doesn't belong here.
+
+node_modules/
+*.log
+.DS_Store
+
+# The datamine workspace lives as a SIBLING (../_hh_extract) and is NEVER committed
+# here. build-assets.mjs / build-data.mjs read it at build time; only the transformed
+# subset (data/*.json, data.js) and the referenced sprite frames (assets/**) are tracked.
+_hh_extract/
+../_hh_extract/
+
+# raw / intermediate data that is NOT the shipped subset
+data/_raw/
+assets/_full_export/
+
+# NOTE: data.js IS committed on purpose — GitHub Pages serves it directly.
+# NOTE: assets/{heroes,artifacts,classes,factions}/*.png ARE committed (the SPA loads them).
