@@ -68,6 +68,24 @@ for (let fi = 0; fi < MOB_SHEET.length; fi++) {
   for (let ui = 0; ui < roster.length; ui++) copyFrame(MOB_SHEET[fi], ui * 20, "units", `${fi}_${ui}`);
 }
 
+// skill icons: copy the spr_skills_RR frame for every skill any hero references (tree slots,
+// specialty, starting skills). skills_consolidated.json maps name -> iconFrame (100% coverage).
+const skillData = readJSON(path.join(EXTRACT, "data", "skills", "skills_consolidated.json"));
+const iconByName = new Map(skillData.skills.map((s) => [s.name, s.iconFrame]));
+const refSkills = new Set();
+for (const h of heroArr) {
+  for (const realm of ["HH", "RR"]) {
+    const t = h.skilltree && h.skilltree[realm];
+    if (t) for (const [slot, name] of Object.entries(t)) if (slot !== "Mastery Unit" && name) refSkills.add(name);
+  }
+  if (h.specialtySkill) refSkills.add(h.specialtySkill);
+  (h.skillset && h.skillset["Starts with"] || []).forEach((n) => refSkills.add(n));
+}
+for (const name of refSkills) {
+  const frame = iconByName.get(name);
+  if (frame != null) copyFrame("spr_skills_RR", frame, "skills", String(frame));
+}
+
 console.log(`build-assets: copied ${copied} sprite frames into ${ASSETS}/.`);
 if (missing.length) {
   console.warn(`⚠ ${missing.length} source frame(s) missing in the extract:`);

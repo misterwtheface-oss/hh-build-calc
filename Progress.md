@@ -31,6 +31,19 @@ set-completion. Data + assets are compiled from the sibling `_hh_extract` by `bu
   its 9 units as tiny ordered pixel sprites (idle frame = `unitIndex*20` off `spr_mob_*`, parsed from
   `MOBID_base_table.gml`), name on hover. 108 sprites in `assets/units/`; Rogue (no standard town) has
   no strip. Verified the frame mapping empirically (idx4→Cavalry, idx6→Gryphon).
+- [x] **Uniform unit-icon cells** (2026-09-17) — unit sprites now sit in fixed square cells
+  (`object-fit: contain`) so every faction row is the same height regardless of native sprite size.
+- [x] **Grouped hero menu** (2026-09-17) — faction hero picker is now sectioned by class (fighter then
+  caster, e.g. Order → General / Priest) with a header + count; each hero is a row with portrait +
+  name + icons of its Mastery unit, Specialty skill, and Primary (class) skill. Neutral mastery units
+  not in the 12 base rosters show a dashed placeholder (sprite backfill = follow-up).
+- [x] **Skill tree overlay** (2026-09-17) — full dynamic pyramid (Starting/2nd/3rd/4th rows + mastery
+  tip from `heroes.json.skilltree[realm]`) with point allocation. Hero level = 1 + points spent and
+  updates live; each rank's level gate = `ROW_BASE[iy](-4,0,4,6) + RANK_COST[rank](1,4,9,15,22,30…) −
+  5·isSpecialty`; a skill can't out-rank its connected parent; de-allocation cascades to keep the tree
+  valid. All grounded in `draw_skillpyramid_ext` + `SKILLSETDATA` (army_scripts/hero_scripts.gml).
+  New pipeline data: `data.skills` (icon+maxRanks), `data.unitSprites` (name→sprite), per-hero row
+  icons; `assets/skills/` copied from `spr_skills_RR`.
 
 ## Known issues / warnings
 - Data is an **extract, not golden** — values are decompiled but unverified against the live game.

@@ -94,6 +94,42 @@ const facTrait = (name) => `fac:${slug(name)}`;
 const MOBID = extractGmlArray(fs.readFileSync(path.join(EXTRACT, "data/factions/MOBID_base_table.gml"), "utf8"), "global.MOBID = ");
 const factionUnits = (fi) => (fi < 12 && MOBID[fi] ? MOBID[fi].map((u, ui) => ({ name: u[0], sprite: `assets/units/${fi}_${ui}.png` })) : []);
 
+// Global unit-name -> sprite map (mastery units are named, not indexed). Base units win over
+// upgrade names; first occurrence per name.
+const unitSprites = {};
+for (let fi = 0; fi < 12; fi++) for (let ui = 0; ui < (MOBID[fi] || []).length; ui++) {
+  const u = MOBID[fi][ui];
+  if (u[0] && !(u[0] in unitSprites)) unitSprites[u[0]] = `assets/units/${fi}_${ui}.png`;
+  if (u[1] && !(u[1] in unitSprites)) unitSprites[u[1]] = `assets/units/${fi}_${ui}.png`; // upgraded name shares the block sprite
+}
+
+// Skills map: name -> { icon, maxRanks, category }. maxRanks/category from SKILLSETDATA (the
+// gameplay skill definitions); icon frame from skills_consolidated.json. SKILLSETDATA row =
+// [name, category, maxRanks, levelReq, rankReq, branch, availability] (army_scripts.gml).
+const SKILLSETDATA = extractGmlArray(fs.readFileSync(path.join(EXTRACT, "code/gml/gml_GlobalScript_army_scripts.gml"), "utf8"), "global.SKILLSETDATA = ");
+const ssMeta = new Map();
+for (const row of SKILLSETDATA) if (!ssMeta.has(row[0])) ssMeta.set(row[0], { maxRanks: Number(row[2]) || 1, category: row[1] });
+const skillIcons = readJSON(path.join(EXTRACT, "data/skills/skills_consolidated.json"));
+const skillFrame = new Map(skillIcons.skills.map((s) => [s.name, { iconFrame: s.iconFrame, maxRanks: s.maxRanks }]));
+const skills = {};
+{
+  const ref = new Set();
+  for (const h of heroArr) {
+    for (const realm of ["HH", "RR"]) { const t = h.skilltree && h.skilltree[realm]; if (t) for (const [slot, name] of Object.entries(t)) if (slot !== "Mastery Unit" && name) ref.add(name); }
+    if (h.specialtySkill) ref.add(h.specialtySkill);
+    (h.skillset && h.skillset["Starts with"] || []).forEach((n) => ref.add(n));
+  }
+  for (const name of ref) {
+    const f = skillFrame.get(name);
+    const meta = ssMeta.get(name);
+    skills[name] = {
+      icon: f ? `assets/skills/${f.iconFrame}.png` : null,
+      maxRanks: meta ? meta.maxRanks : (f ? f.maxRanks : 3),
+      category: meta ? meta.category : null,
+    };
+  }
+}
+
 const factionOrder = [...new Set(heroArr.map((h) => h.factionIndex))].sort((a, b) => a - b);
 const factions = factionOrder.map((fi) => {
   const name = heroArr.find((h) => h.factionIndex === fi).faction;
@@ -118,15 +154,23 @@ const classes = classArr.map((c) => ({
 const classById = new Map(classes.map((c) => [c.id, c]));
 
 // ── heroes ──
-const heroes = heroArr.map((h) => ({
-  id: h.index, name: h.name, faction: h.faction, factionIndex: h.factionIndex,
-  classId: h.classId, className: h.class, classType: h.classType, race: h.race,
-  portraitFrame: h.index, icon: `assets/heroes/${h.index}.png`,
-  startingSpell: h.startingSpell, masteryUnit: h.masteryUnit, specialtySkill: h.specialtySkill,
-  unlockTier: h.unlockTier, unlockable: h.unlockable,
-  skilltree: h.skilltree, skillset: h.skillset,
-  traits: [facTrait(h.faction)],
-}));
+// primarySkill = the class-defining first "Starts with" skill; specialty = the hero's unique
+// specialty skill; masteryUnit = signature unit. All three get an icon for the grouped hero menu.
+const heroes = heroArr.map((h) => {
+  const primarySkill = (h.skillset && h.skillset["Starts with"] && h.skillset["Starts with"][0]) || null;
+  return {
+    id: h.index, name: h.name, faction: h.faction, factionIndex: h.factionIndex,
+    classId: h.classId, className: h.class, classType: h.classType, race: h.race,
+    portraitFrame: h.index, icon: `assets/heroes/${h.index}.png`,
+    startingSpell: h.startingSpell,
+    masteryUnit: h.masteryUnit, masterySprite: h.masteryUnit ? (unitSprites[h.masteryUnit] || null) : null,
+    specialtySkill: h.specialtySkill, specialtyIcon: h.specialtySkill && skills[h.specialtySkill] ? skills[h.specialtySkill].icon : null,
+    primarySkill, primaryIcon: primarySkill && skills[primarySkill] ? skills[primarySkill].icon : null,
+    unlockTier: h.unlockTier, unlockable: h.unlockable,
+    skilltree: h.skilltree, skillset: h.skillset,
+    traits: [facTrait(h.faction)],
+  };
+});
 
 // ── artifacts (parse artdata rows) ──
 // row = [name, slot(1-10), quality(1-5), spriteIdx, size1, effect1, size2, effect2, setId, str/magic]
@@ -173,6 +217,13 @@ for (const f of factions) {
   if (assetMiss(f.sigil)) errors.push(`faction "${f.name}" → ${f.sigil} (missing sigil)`);
   for (const u of f.units) if (assetMiss(u.sprite)) errors.push(`faction "${f.name}" unit "${u.name}" → ${u.sprite} (missing sprite)`);
 }
+// skills: icon exists (when present)
+for (const [name, s] of Object.entries(skills)) if (s.icon && assetMiss(s.icon)) errors.push(`skill "${name}" → ${s.icon} (missing icon)`);
+// hero row icons: warn if a referenced mastery/specialty/primary sprite is absent (non-fatal)
+for (const h of heroes) {
+  if (h.masterySprite && assetMiss(h.masterySprite)) warnings.push(`hero "${h.name}" mastery sprite ${h.masterySprite} missing`);
+  if (h.specialtyIcon && assetMiss(h.specialtyIcon)) warnings.push(`hero "${h.name}" specialty icon ${h.specialtyIcon} missing`);
+}
 // heroes: class resolves, traits resolve, portrait exists
 for (const h of heroes) {
   if (!classById.has(h.classId)) errors.push(`hero ${h.id} "${h.name}" → classId ${h.classId} (no such class)`);
@@ -205,7 +256,7 @@ if (hard) { console.error(`BUILD FAILED: ${hard} error(s). data.js left untouche
 
 // ── write shipped JSON + data.js ──
 fs.mkdirSync(DATA_DIR, { recursive: true });
-const data = { heroes, classes, artifacts, artifactSets, traits, factions, effectStat: EFFECT_STAT };
+const data = { heroes, classes, artifacts, artifactSets, traits, factions, skills, unitSprites, effectStat: EFFECT_STAT };
 for (const [k, v] of Object.entries(data)) fs.writeFileSync(path.join(DATA_DIR, `${k}.json`), JSON.stringify(v, null, 0));
 fs.writeFileSync(OUT, `window.${ACRONYM}_DATA = ${JSON.stringify(data)};\n`);
 console.log(`Wrote ${OUT} (window.${ACRONYM}_DATA) and ${DATA_DIR}/*.json.`);

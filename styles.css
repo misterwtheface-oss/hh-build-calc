@@ -97,16 +97,138 @@ button:hover { filter: brightness(1.1); }
   color: var(--ink); letter-spacing: 0.03em; line-height: 1.1;
 }
 .faction-sub { font-size: 0.78rem; color: #6b5636; }
-/* tiny faction unit roster, in order — pixel sprites at a fixed height, width free */
-.faction-units { display: flex; align-items: flex-end; gap: 3px; margin-top: 0.35rem; flex-wrap: wrap; }
+/* tiny faction unit roster, in order — each sprite sits in a FIXED square cell (object-fit
+   contain) so every row is exactly the same height regardless of native sprite dimensions */
+.faction-units { display: flex; align-items: center; gap: 2px; margin-top: 0.35rem; flex-wrap: nowrap; }
 .faction-unit {
-  height: 22px; width: auto; image-rendering: pixelated;
-  filter: drop-shadow(0 1px 0 rgba(0,0,0,0.28));
+  width: 26px; height: 26px; flex: 0 0 26px; object-fit: contain; object-position: center bottom;
+  image-rendering: pixelated; filter: drop-shadow(0 1px 0 rgba(0,0,0,0.28));
 }
 .faction-chevron { font-size: 1.6rem; color: var(--fac-color); flex-shrink: 0; opacity: 0.8; align-self: center; }
 
 @media (min-width: 640px) {
-  .faction-unit { height: 26px; }
+  .faction-unit { width: 30px; height: 30px; flex-basis: 30px; }
+}
+
+/* ═══════════ GROUPED HERO MENU (rows by class) ═══════════ */
+.ovl-grid.hero-groups { display: flex; flex-direction: column; gap: 0.8rem; grid-template-columns: none; }
+.hero-group { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface2); }
+.hero-group-head {
+  display: flex; align-items: baseline; gap: 0.5rem; padding: 0.4rem 0.6rem;
+  background: linear-gradient(180deg, #3a2c1c, var(--surface2)); border-bottom: 1px solid var(--border);
+}
+.hg-title { font-family: var(--display-font); font-weight: 600; color: var(--border-hi); font-size: 0.98rem; }
+.hg-type { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+.hg-count { margin-left: auto; font-size: 0.75rem; color: var(--text-dim); }
+.hero-group-body { display: flex; flex-direction: column; }
+.hero-row {
+  display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.6rem; cursor: pointer;
+  border-top: 1px solid rgba(0,0,0,0.25);
+}
+.hero-row:first-child { border-top: none; }
+.hero-row:hover { background: rgba(217,164,65,0.10); }
+.hero-row.selected { background: rgba(217,164,65,0.20); box-shadow: inset 3px 0 0 var(--border-hi); }
+.hero-row-portrait {
+  width: 40px; height: 40px; flex: 0 0 40px; border: 1px solid var(--border-hi); border-radius: 6px;
+  background: var(--bg); overflow: hidden; display: flex; align-items: center; justify-content: center;
+}
+.hero-row-portrait img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.hero-row-id { flex: 1; min-width: 0; }
+.hero-row-name { font-weight: 600; color: var(--text); }
+.hero-row-icons { display: flex; align-items: center; gap: 0.3rem; flex: 0 0 auto; }
+.hero-mini {
+  width: 34px; height: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+}
+.hero-mini img { width: 30px; height: 26px; object-fit: contain; object-position: center; image-rendering: pixelated; }
+.hero-mini.mini-skill img { image-rendering: auto; }
+.hero-mini-label { font-size: 0.5rem; line-height: 1; color: var(--text-dim); max-width: 34px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+.hero-mini.mini-empty { justify-content: center; }
+.hero-mini.mini-empty::before {
+  content: ""; width: 22px; height: 22px; border: 1px dashed var(--border); border-radius: 4px; opacity: 0.6;
+}
+@media (min-width: 640px) {
+  .hero-mini { width: 44px; }
+  .hero-mini-label { font-size: 0.6rem; max-width: 44px; }
+}
+
+/* hero header action row (realm toggle + skill tree) */
+.hero-actions { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.4rem; flex-wrap: wrap; }
+.skilltree-open { background: var(--accent); font-size: 0.85rem; padding: 0.35rem 0.7rem; border-radius: 6px; }
+
+/* ═══════════ SKILL TREE OVERLAY ═══════════ */
+.skilltree-panel { max-width: 720px; }
+.tk-bar {
+  display: flex; align-items: center; gap: 0.8rem; padding: 0.5rem 0.9rem;
+  background: var(--surface2); border-bottom: 1px solid var(--border);
+}
+.tk-level { display: flex; align-items: baseline; gap: 0.3rem; }
+.tk-level-num { font-family: var(--display-font); font-size: 1.7rem; font-weight: 700; color: var(--border-hi); line-height: 1; }
+.tk-level-lbl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); }
+.tk-points { font-size: 0.85rem; color: var(--text-muted); }
+.tk-bar .ghost { margin-left: auto; }
+.tk-scroll { padding: 0.8rem 0.6rem; max-height: calc(90dvh - 9rem); overflow-y: auto; }
+
+.tk-row { display: flex; gap: 0.5rem; align-items: flex-start; margin-bottom: 0.9rem; }
+.tk-row-tier {
+  flex: 0 0 40px; display: flex; flex-direction: column; align-items: center; padding-top: 0.5rem;
+  font-family: var(--display-font); color: var(--border-hi); font-size: 0.9rem;
+}
+.tk-row-lvl { font-family: system-ui, sans-serif; font-size: 0.58rem; color: var(--text-dim); margin-top: 2px; }
+.tk-row-nodes { flex: 1; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; }
+
+.tk-node {
+  width: 74px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 0.35rem 0.2rem; border-radius: 8px; background: var(--surface);
+  border: 1px solid var(--border); position: relative;
+}
+.tk-node.tk-empty { visibility: hidden; }
+.tk-node.allocated { border-color: var(--border-hi); box-shadow: 0 0 0 1px var(--border-hi), 0 0 8px rgba(217,164,65,0.25); }
+.tk-node.spec { background: linear-gradient(180deg, #3a2f42, var(--surface)); }
+.tk-node.spec::after { content: "★"; position: absolute; top: 2px; right: 4px; font-size: 0.6rem; color: var(--gold); }
+.tk-node.locked { opacity: 0.5; }
+.tk-icon { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; }
+.tk-icon img { width: 32px; height: 32px; object-fit: contain; image-rendering: pixelated; }
+.tk-ico-fallback { font-family: var(--display-font); color: var(--text-dim); }
+.tk-name { font-size: 0.6rem; text-align: center; line-height: 1.05; color: var(--text); min-height: 1.6em; }
+.tk-pips { display: flex; gap: 2px; }
+.tk-pip { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
+.tk-pip.on { background: var(--gold); box-shadow: 0 0 3px var(--gold); }
+.tk-ctrl { display: flex; align-items: center; gap: 3px; }
+.tk-btn {
+  width: 20px; height: 20px; padding: 0; border-radius: 4px; background: var(--accent);
+  font-size: 0.9rem; line-height: 1; display: flex; align-items: center; justify-content: center;
+}
+.tk-btn:disabled { background: var(--surface2); color: var(--text-dim); cursor: default; filter: none; }
+.tk-rank { font-size: 0.65rem; color: var(--text-muted); min-width: 22px; text-align: center; }
+.tk-req { font-size: 0.55rem; padding: 1px 4px; border-radius: 3px; }
+.tk-req.ok { color: var(--pos); }
+.tk-req.no { color: var(--text-dim); }
+.tk-req.max { color: var(--gold); }
+
+.tk-mastery {
+  display: flex; align-items: center; gap: 0.6rem; justify-content: center; margin: 0.4rem auto 0;
+  max-width: 260px; padding: 0.5rem 0.8rem; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--border-hi);
+}
+.tk-mastery-icon { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; }
+.tk-mastery-icon img { width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; }
+.tk-mastery-txt { display: flex; flex-direction: column; }
+.tk-note { font-size: 0.72rem; margin-top: 0.8rem; text-align: center; }
+
+@media (min-width: 640px) {
+  .tk-node { width: 84px; }
+  .tk-name { font-size: 0.66rem; }
+}
+/* narrow phones: shrink nodes so the widest row (5) fits without horizontal scroll */
+@media (max-width: 440px) {
+  .tk-row { gap: 0.25rem; }
+  .tk-row-tier { flex-basis: 26px; font-size: 0.75rem; }
+  .tk-row-nodes { gap: 0.25rem; }
+  .tk-node { width: 60px; padding: 0.3rem 0.1rem; }
+  .tk-name { font-size: 0.54rem; }
+  .tk-icon, .tk-icon img { width: 28px; height: 28px; }
+  .tk-btn { width: 18px; height: 18px; }
+  .tk-rank { min-width: 18px; font-size: 0.6rem; }
 }
 
 @media (min-width: 640px) {

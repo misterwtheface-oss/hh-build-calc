@@ -39,7 +39,7 @@
   state.view = state.build.heroId != null ? "build" : "landing";
 
   function makeBuild() {
-    return { heroId: null, realm: "HH", equipment: Array(SLOT_COUNT).fill(null), stats: { A: 0, D: 0, K: 0, S: 0, M: 0, L: 0 } };
+    return { heroId: null, realm: "HH", equipment: Array(SLOT_COUNT).fill(null), stats: { A: 0, D: 0, K: 0, S: 0, M: 0, L: 0 }, skillRanks: {} };
   }
   function load() {
     let b;
@@ -51,6 +51,7 @@
       realm: b.realm === "RR" ? "RR" : "HH",
       equipment: Array.from({ length: SLOT_COUNT }, (_, i) => (artById.has(b.equipment?.[i]) ? b.equipment[i] : null)),
       stats: { ...base.stats, ...(b.stats || {}) },
+      skillRanks: (b.skillRanks && typeof b.skillRanks === "object") ? b.skillRanks : {},
     };
   }
   function persist() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.build)); }
@@ -226,7 +227,10 @@
           <h2>${esc(hero.name)}</h2>
           <div class="hero-sub">${esc(hero.faction)} · ${esc(hero.className)} <span class="muted">(${esc(hero.classType)})</span></div>
           <div class="hero-meta">Mastery: ${esc(realmField(hero, "Mastery Unit") || hero.masteryUnit || "—")} · Specialty: ${esc(hero.specialtySkill || "—")}</div>
-          ${realmToggleHTML()}
+          <div class="hero-actions" data-stop="1">
+            ${realmToggleHTML()}
+            <button class="skilltree-open" data-action="open-skilltree">Skill Tree</button>
+          </div>
         </div>
       </div>` : `
       <div class="hero-header" data-action="open-hero">
@@ -320,7 +324,9 @@
       const list = DATA.heroes
         .filter((h) => !fac || h.faction === fac)
         .filter((h) => !q || h.name.toLowerCase().includes(q) || h.faction.toLowerCase().includes(q) || h.className.toLowerCase().includes(q));
-      panel.querySelector(".ovl-grid").innerHTML = list.length ? list.map((h) => cardHTML(h.id, h.icon, h.name, h.id === state.ovl.pending)).join("") : `<p class="muted">No matches.</p>`;
+      const grid = panel.querySelector(".ovl-grid");
+      grid.className = "ovl-grid hero-groups";
+      grid.innerHTML = list.length ? heroGroupsHTML(list, !fac) : `<p class="muted">No matches.</p>`;
       const p = state.ovl.pending != null ? heroById.get(state.ovl.pending) : null;
       panel.querySelector(".ovl-left").innerHTML = `<h3>Hero</h3>` + (p
         ? `<p><b>${esc(p.name)}</b></p><p class="muted">${esc(p.className)} (${esc(p.classType)})</p>
@@ -340,7 +346,9 @@
     } else {
       const slot = state.ovl.slotIndex + 1;
       const list = DATA.artifacts.filter((a) => a.slot === slot).filter((a) => !q || a.name.toLowerCase().includes(q));
-      panel.querySelector(".ovl-grid").innerHTML = list.length ? list.map((a) => cardHTML(a.id, a.icon, a.name, a.id === state.ovl.pending, QUALITY_COLOR[a.quality])).join("") : `<p class="muted">No artifacts for this slot.</p>`;
+      const grid = panel.querySelector(".ovl-grid");
+      grid.className = "ovl-grid";
+      grid.innerHTML = list.length ? list.map((a) => cardHTML(a.id, a.icon, a.name, a.id === state.ovl.pending, QUALITY_COLOR[a.quality])).join("") : `<p class="muted">No artifacts for this slot.</p>`;
       const p = state.ovl.pending ? artById.get(state.ovl.pending) : null;
       panel.querySelector(".ovl-left").innerHTML = `<h3>Effects</h3>` + (p
         ? (p.effects.length ? `<ul class="trait-users" style="flex-direction:column">${p.effects.map((e) => `<li>${esc(effectLabel(e))}</li>`).join("")}</ul>` : `<p class="muted">No stat effects.</p>`)
@@ -358,6 +366,43 @@
     SCROLLERS.forEach((sel, i) => { const el = panel.querySelector(sel); if (el) el.scrollTop = saved[i]; });
   }
 
+  // Grouped hero list: sectioned by class (a faction's fighter then caster), each hero its own
+  // row with icons of Mastery unit, Specialty, and Primary (class) skill.
+  function heroGroupsHTML(list, showFaction) {
+    const groups = new Map(); // classId -> {cls, faction, heroes[]}
+    for (const h of list) {
+      if (!groups.has(h.classId)) groups.set(h.classId, { classId: h.classId, className: h.className, classType: h.classType, faction: h.faction, heroes: [] });
+      groups.get(h.classId).heroes.push(h);
+    }
+    const ordered = [...groups.values()].sort((a, b) => a.faction.localeCompare(b.faction) || a.classType.localeCompare(b.classType) || a.classId - b.classId);
+    return ordered.map((g) => `
+      <section class="hero-group">
+        <header class="hero-group-head">
+          <span class="hg-title">${showFaction ? esc(g.faction) + " · " : ""}${esc(g.className)}</span>
+          <span class="hg-type">${esc(g.classType)}</span>
+          <span class="hg-count">${g.heroes.length}</span>
+        </header>
+        <div class="hero-group-body">${g.heroes.map(heroRowHTML).join("")}</div>
+      </section>`).join("");
+  }
+  function miniIcon(src, label, kind) {
+    return `<span class="hero-mini ${kind}" title="${esc(label)}">
+      ${src ? `<img src="${esc(src)}" alt="" onerror="this.style.display='none';this.parentNode.classList.add('mini-empty')">` : ""}
+      <span class="hero-mini-label">${esc(label)}</span></span>`;
+  }
+  function heroRowHTML(h) {
+    const sel = h.id === state.ovl.pending;
+    return `<div class="hero-row ${sel ? "selected" : ""}" data-action="pick" data-id="${esc(h.id)}" title="${esc(h.name)}">
+      <span class="hero-row-portrait"><img src="${esc(h.icon)}" alt="" onerror="this.style.visibility='hidden'"></span>
+      <span class="hero-row-id"><span class="hero-row-name">${esc(h.name)}</span></span>
+      <span class="hero-row-icons">
+        ${miniIcon(h.masterySprite, h.masteryUnit || "—", "mini-unit")}
+        ${miniIcon(h.specialtyIcon, h.specialtySkill || "—", "mini-skill")}
+        ${miniIcon(h.primaryIcon, h.primarySkill || "—", "mini-skill")}
+      </span>
+    </div>`;
+  }
+
   function cardHTML(id, icon, name, selected, qColor) {
     const ring = qColor && selected ? "" : "";
     return `<div class="ovl-card ${selected ? "selected" : ""}" data-action="pick" data-id="${esc(id)}" title="${esc(name)}"${qColor ? ` style="box-shadow:inset 0 0 0 1px ${qColor}"` : ""}>
@@ -369,7 +414,10 @@
   function closeOverlay(commit) {
     if (!state.ovl) return;
     if (commit) {
-      if (state.ovl.kind === "hero") { state.build.heroId = state.ovl.pending; if (state.build.heroId != null) state.view = "build"; }
+      if (state.ovl.kind === "hero") {
+        if (state.build.heroId !== state.ovl.pending) state.build.skillRanks = {}; // new hero → fresh tree
+        state.build.heroId = state.ovl.pending; if (state.build.heroId != null) state.view = "build";
+      }
       else state.build.equipment[state.ovl.slotIndex] = state.ovl.pending;
       persist();
     }
@@ -418,6 +466,179 @@
     root.classList.add("hidden"); root.setAttribute("aria-hidden", "true"); root.innerHTML = "";
   }
 
+  // ═══ SKILL TREE (#detail-overlay-root) ═══
+  // Faithful reconstruction of Hero's Hour's skill pyramid + level gating (grounded in
+  // army_scripts.gml / hero_scripts.gml draw_skillpyramid_ext):
+  //   rows: Starting(2) · 2nd(4) · 3rd(5) · 4th(4), from hero.skilltree[realm]; Mastery-unit tip.
+  //   level to raise a skill to its next rank = ROW_BASE[iy] + RANK_COST[rank] − 5·isSpecialty.
+  //   prerequisite: a child's rank can't exceed its highest connected parent (row above, ix-1/ix).
+  //   hero level = 1 + total ranks allocated (each level-up = one point), so level rises as you spend.
+  const ROW_BASE = [-4, 0, 4, 6];
+  const RANK_COST = [1, 4, 9, 15, 22, 30, 40, 50, 60, 70, 80, 90, 100];
+  const TREE_ROWS = [
+    ["Starting Skill 1", "Starting Skill 2"],
+    ["2nd row 1", "2nd row 2", "2nd row 3", "2nd row 4"],
+    ["3rd row 1", "3rd row 2", "3rd row middle", "3rd row 3", "3rd row 4"],
+    ["4th row 1", "4th row 2", "4th row 3", "4th row 4"],
+  ];
+  const skillMeta = (name) => (name && DATA.skills[name]) || null;
+  const maxRankOf = (name) => { const m = skillMeta(name); return m ? m.maxRanks : 3; };
+
+  function treeGrid(hero, realm) {
+    const t = (hero.skilltree && hero.skilltree[realm]) || {};
+    return TREE_ROWS.map((slots, iy) => slots.map((slot, ix) => ({ iy, ix, slot, skill: t[slot] || null })));
+  }
+  function treeCells(grid) { const out = []; for (const row of grid) for (const c of row) if (c.skill) out.push(c); return out; }
+  function parentsOf(grid, iy, ix) {
+    if (iy === 0) return [];
+    const prev = grid[iy - 1], res = [];
+    if (prev[ix - 1] && prev[ix - 1].skill) res.push(prev[ix - 1]);
+    if (prev[ix] && prev[ix].skill) res.push(prev[ix]);
+    return res;
+  }
+  const rankOf = (ranks, name) => Number(ranks[name] || 0);
+  function levelFrom(grid, ranks) { let n = 0; for (const c of treeCells(grid)) n += rankOf(ranks, c.skill); return 1 + n; }
+  // returns "" if valid, else a reason string for the FIRST violation
+  function treeInvalidReason(hero, grid, ranks) {
+    const L = levelFrom(grid, ranks);
+    for (const c of treeCells(grid)) {
+      const r = rankOf(ranks, c.skill); if (r <= 0) continue;
+      if (r > maxRankOf(c.skill)) return `${c.skill} over max rank`;
+      const spec = c.skill === hero.specialtySkill ? 5 : 0;
+      const need = ROW_BASE[c.iy] + RANK_COST[r - 1] - spec;
+      if (L < need) return `${c.skill} needs level ${need}`;
+      const ps = parentsOf(grid, c.iy, c.ix);
+      if (ps.length) { const mp = Math.max(...ps.map((p) => rankOf(ranks, p.skill))); if (mp < r) return `${c.skill} needs a higher parent skill`; }
+    }
+    return "";
+  }
+  // level required to take THIS skill from its current rank to the next (for display / gating)
+  function nextRankLevel(hero, grid, c) {
+    const r = rankOf(state.build.skillRanks, c.skill);
+    const spec = c.skill === hero.specialtySkill ? 5 : 0;
+    return ROW_BASE[c.iy] + RANK_COST[r] - spec;
+  }
+  function canInc(hero, grid, c) {
+    const ranks = state.build.skillRanks, r = rankOf(ranks, c.skill);
+    if (r >= maxRankOf(c.skill)) return false;
+    const trial = { ...ranks, [c.skill]: r + 1 };
+    return treeInvalidReason(hero, grid, trial) === "";
+  }
+  function incSkill(name) {
+    const hero = heroById.get(state.build.heroId); if (!hero) return;
+    const grid = treeGrid(hero, state.build.realm);
+    const c = treeCells(grid).find((x) => x.skill === name); if (!c) return;
+    if (!canInc(hero, grid, c)) return;
+    state.build.skillRanks[name] = rankOf(state.build.skillRanks, name) + 1;
+    persist(); renderSkillTree();
+  }
+  function decSkill(name) {
+    const hero = heroById.get(state.build.heroId); if (!hero) return;
+    const grid = treeGrid(hero, state.build.realm);
+    const ranks = state.build.skillRanks;
+    if (rankOf(ranks, name) <= 0) return;
+    ranks[name] = rankOf(ranks, name) - 1;
+    if (ranks[name] === 0) delete ranks[name];
+    pruneToValid(hero, grid);           // cascade: drop any ranks the lower level now invalidates
+    persist(); renderSkillTree();
+  }
+  function pruneToValid(hero, grid) {
+    const ranks = state.build.skillRanks;
+    let guard = 0;
+    while (treeInvalidReason(hero, grid, ranks) && guard++ < 500) {
+      const L = levelFrom(grid, ranks);
+      // find an offending cell (deepest row / highest rank first) and shed a rank
+      const offenders = treeCells(grid).filter((c) => {
+        const r = rankOf(ranks, c.skill); if (r <= 0) return false;
+        const spec = c.skill === hero.specialtySkill ? 5 : 0;
+        if (L < ROW_BASE[c.iy] + RANK_COST[r - 1] - spec) return true;
+        const ps = parentsOf(grid, c.iy, c.ix);
+        return ps.length && Math.max(...ps.map((p) => rankOf(ranks, p.skill))) < r;
+      }).sort((a, b) => (b.iy - a.iy) || (rankOf(ranks, b.skill) - rankOf(ranks, a.skill)));
+      if (!offenders.length) break;
+      const o = offenders[0];
+      ranks[o.skill] = rankOf(ranks, o.skill) - 1;
+      if (ranks[o.skill] === 0) delete ranks[o.skill];
+    }
+  }
+  function pruneStale(hero, realm) {
+    // drop allocations for skills not in the current hero/realm tree
+    const grid = treeGrid(hero, realm);
+    const valid = new Set(treeCells(grid).map((c) => c.skill));
+    let changed = false;
+    for (const k of Object.keys(state.build.skillRanks)) if (!valid.has(k)) { delete state.build.skillRanks[k]; changed = true; }
+    if (changed) pruneToValid(hero, grid);
+    return changed;
+  }
+
+  function openSkillTree() {
+    const hero = state.build.heroId != null ? heroById.get(state.build.heroId) : null;
+    if (!hero) { openHeroOverlay(); return; }
+    pruneStale(hero, state.build.realm);
+    renderSkillTree();
+  }
+  function renderSkillTree() {
+    const hero = heroById.get(state.build.heroId); if (!hero) return;
+    const realm = state.build.realm;
+    const grid = treeGrid(hero, realm);
+    const ranks = state.build.skillRanks;
+    const level = levelFrom(grid, ranks);
+    const points = level - 1;
+    const t = (hero.skilltree && hero.skilltree[realm]) || {};
+    const masteryUnit = t["Mastery Unit"] || hero.masteryUnit || null;
+    const masterySprite = masteryUnit ? DATA.unitSprites[masteryUnit] : null;
+
+    const nodeHTML = (c) => {
+      if (!c.skill) return `<div class="tk-node tk-empty"></div>`;
+      const meta = skillMeta(c.skill), max = maxRankOf(c.skill), r = rankOf(ranks, c.skill);
+      const spec = c.skill === hero.specialtySkill;
+      const canUp = canInc(hero, grid, c);
+      const need = nextRankLevel(hero, grid, c);
+      const locked = r === 0 && !canUp;
+      const pips = Array.from({ length: max }, (_, i) => `<span class="tk-pip ${i < r ? "on" : ""}"></span>`).join("");
+      return `<div class="tk-node ${r > 0 ? "allocated" : ""} ${locked ? "locked" : ""} ${spec ? "spec" : ""}" title="${esc(c.skill)}${spec ? " (specialty)" : ""}">
+        <div class="tk-icon">${meta && meta.icon ? `<img src="${esc(meta.icon)}" alt="" onerror="this.style.display='none'">` : `<span class="tk-ico-fallback">${esc(c.skill[0])}</span>`}</div>
+        <div class="tk-name">${esc(c.skill)}</div>
+        <div class="tk-pips">${pips}</div>
+        <div class="tk-ctrl">
+          <button class="tk-btn" data-action="skill-dec" data-skill="${esc(c.skill)}" ${r <= 0 ? "disabled" : ""}>−</button>
+          <span class="tk-rank">${r}/${max}</span>
+          <button class="tk-btn" data-action="skill-inc" data-skill="${esc(c.skill)}" ${r >= max || !canUp ? "disabled" : ""}>+</button>
+        </div>
+        ${r < max ? `<div class="tk-req ${canUp ? "ok" : "no"}">Lv ${need}</div>` : `<div class="tk-req max">MAX</div>`}
+      </div>`;
+    };
+    const rowsHTML = grid.map((row, iy) => `
+      <div class="tk-row tk-row-${iy}">
+        <div class="tk-row-tier">T${iy + 1}<span class="tk-row-lvl">Lv ${ROW_BASE[iy] + RANK_COST[0]}+</span></div>
+        <div class="tk-row-nodes">${row.map(nodeHTML).join("")}</div>
+      </div>`).join("");
+
+    const root = document.getElementById("detail-overlay-root");
+    const prev = root.querySelector(".tk-scroll");
+    const prevScroll = prev ? prev.scrollTop : 0;
+    root.innerHTML = `
+      <div class="overlay-panel skilltree-panel" role="dialog" aria-modal="true">
+        <div class="overlay-header">
+          <h2>${esc(hero.name)} — Skill Tree <span class="muted">(${realm === "RR" ? "Rogue" : "Base"})</span></h2>
+          <button class="overlay-close" data-action="close-detail" aria-label="Close">&times;</button>
+        </div>
+        <div class="tk-bar">
+          <div class="tk-level"><span class="tk-level-num">${level}</span><span class="tk-level-lbl">Level</span></div>
+          <div class="tk-points">${points} skill point${points === 1 ? "" : "s"} spent</div>
+          <button class="ghost" data-action="skill-reset">Reset</button>
+        </div>
+        <div class="overlay-body"><div class="tk-scroll">
+          ${rowsHTML}
+          ${masterySprite ? `<div class="tk-mastery"><div class="tk-mastery-icon"><img src="${esc(masterySprite)}" alt="" onerror="this.style.display='none'"></div><div class="tk-mastery-txt"><span class="muted">Mastery unit</span><b>${esc(masteryUnit)}</b></div></div>` : ""}
+          <p class="tk-note muted">Deeper tiers and higher ranks need a higher hero level — spend points in earlier skills to reach them. A skill can't out-rank its connected parent.</p>
+        </div></div>
+        <div class="overlay-footer"><button data-action="close-detail">Done</button></div>
+      </div>`;
+    root.classList.remove("hidden"); root.setAttribute("aria-hidden", "false");
+    const sc = root.querySelector(".tk-scroll"); if (sc) sc.scrollTop = prevScroll;
+  }
+
   // ═══ EVENT DELEGATION ═══
   function onAppClick(e) {
     const el = e.target.closest("[data-action]"); if (!el) return;
@@ -427,7 +648,12 @@
       case "go-landing": state.view = "landing"; renderApp(); break;
       case "open-hero": openHeroOverlay(); break;
       case "open-slot": openSlotOverlay(Number(el.dataset.slot)); break;
-      case "set-realm": e.stopPropagation(); state.build.realm = el.dataset.realm; persist(); renderApp(); break;
+      case "open-skilltree": e.stopPropagation(); openSkillTree(); break;
+      case "set-realm": {
+        e.stopPropagation();
+        if (state.build.realm !== el.dataset.realm) { state.build.realm = el.dataset.realm; const h = heroById.get(state.build.heroId); if (h) pruneStale(h, state.build.realm); persist(); renderApp(); }
+        break;
+      }
       case "stat-inc": bumpStat(el.dataset.key, +1); break;
       case "stat-dec": bumpStat(el.dataset.key, -1); break;
       case "clear": state.build = makeBuild(); persist(); renderApp(); break;
@@ -460,7 +686,10 @@
       case "close-detail": closeDetail(); break;
       case "nav-trait": openTraitDetail(el.dataset.trait); break;
       case "nav-artifact": openArtifactDetail(el.dataset.id); break;
-      case "nav-hero": closeDetail(); state.build.heroId = Number(el.dataset.id); persist(); renderApp(); break;
+      case "nav-hero": closeDetail(); if (state.build.heroId !== Number(el.dataset.id)) state.build.skillRanks = {}; state.build.heroId = Number(el.dataset.id); persist(); renderApp(); break;
+      case "skill-inc": incSkill(el.dataset.skill); break;
+      case "skill-dec": decSkill(el.dataset.skill); break;
+      case "skill-reset": state.build.skillRanks = {}; persist(); renderSkillTree(); break;
     }
   }
   function onKeydown(e) {
