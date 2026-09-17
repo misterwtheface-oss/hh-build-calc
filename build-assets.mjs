@@ -7,8 +7,10 @@
     hero portrait      spr_heroportraitROGUE/<index>.png      -> assets/heroes/<index>.png
     artifact icon      spr_artifactO/<artdata[3]>.png          -> assets/artifacts/<frame>.png
     class silhouette   spr_classsilhouettes/<classId+2>.png    -> assets/classes/<frame>.png
-  (Faction insignia are white silhouettes the game tints at runtime — they render blank as raw PNGs,
-   so faction traits use their banner colour instead of an icon; no insignia are copied.)
+    faction sigil      spr_factions_/<engineFactionIndex>.png  -> assets/factions/<engineFactionIndex>.png
+  Faction sigils are white silhouettes the game tints at runtime; the SPA renders them the same way
+  (CSS mask + faction colour), so the raw white PNG is exactly what we need. engineFactionIndex =
+  factionIndex for 0-11, and Rogue (heroes factionIndex 12) maps to engine 14 (ASSET_MAP.md).
 
   Run BEFORE build-data.mjs so the hygiene guardrails can verify every icon path exists.
   Usage:  node build-assets.mjs
@@ -49,6 +51,22 @@ function copyFrame(sheet, frame, destDir, destName) {
 for (const h of heroArr) copyFrame("spr_heroportraitROGUE", h.index, "heroes", String(h.index));
 for (const f of artifactFrames) copyFrame("spr_artifactO", f, "artifacts", String(f));
 for (const c of classArr) copyFrame("spr_classsilhouettes", c.silhouetteFrame, "classes", String(c.silhouetteFrame));
+
+// faction sigils: one per playable faction. engineFactionIndex = factionIndex (0-11), Rogue -> 14.
+const factionFrames = [...new Set(heroArr.map((h) => (h.factionIndex < 12 ? h.factionIndex : 14)))];
+for (const fi of factionFrames) copyFrame("spr_factions_", fi, "factions", String(fi));
+
+// per-faction unit roster sprites (tiny idle frames for the landing tiles).
+// sheet = MOB_SHEET[engineFactionIndex]; idle frame = unitIndexWithinFaction * 20 (ASSET_MAP.md).
+// The 12 base factions (engine 0-11) each carry 9 ordered units in MOBID; Rogue has no standard town.
+const MOB_SHEET = ["spr_mob_cas", "spr_mob_ram", "spr_mob_tow", "spr_mob_nec", "spr_mob_inf",
+  "spr_mob_str", "spr_mob_for", "spr_mob_dun", "spr_mob_isl", "spr_mob_dwa", "spr_mob_qin", "spr_mob_lov"];
+const mobidGml = fs.readFileSync(path.join(EXTRACT, "data", "factions", "MOBID_base_table.gml"), "utf8");
+const MOBID = extractGmlArray(mobidGml, "global.MOBID = ");
+for (let fi = 0; fi < MOB_SHEET.length; fi++) {
+  const roster = MOBID[fi] || [];
+  for (let ui = 0; ui < roster.length; ui++) copyFrame(MOB_SHEET[fi], ui * 20, "units", `${fi}_${ui}`);
+}
 
 console.log(`build-assets: copied ${copied} sprite frames into ${ASSETS}/.`);
 if (missing.length) {

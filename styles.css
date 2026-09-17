@@ -19,6 +19,12 @@
   --neg: #d15a4a;         /* negative delta               */
   --conflict: #c0392b;
   --slot-size: 60px;
+  /* light aged-paper parchment for the faction landing tiles */
+  --parchment: #e7d7b0;
+  --parchment-hi: #f2e6c6;
+  --parchment-edge: #b79a63;
+  --ink: #3a2a16;
+  --display-font: "Cinzel", "Trajan Pro", Georgia, "Times New Roman", serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -45,9 +51,69 @@ button:hover { filter: brightness(1.1); }
   display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
   padding: 0.75rem 1rem; border-bottom: 2px solid var(--border-hi); background: var(--surface2);
 }
-.app-header h1 { font-size: clamp(1.05rem, 3.5vw, 1.55rem); color: var(--border-hi); }
+.app-header h1 { font-size: clamp(1.05rem, 3.5vw, 1.55rem); color: var(--border-hi); font-family: var(--display-font); letter-spacing: 0.02em; }
 
 .planning-main { padding: 1rem; height: calc(100dvh - 3.4rem); overflow-y: auto; }
+
+/* ═══════════ LANDING VIEW — vertical parchment faction tiles ═══════════ */
+.landing-header { justify-content: center; }
+.landing-header h1 { text-align: center; }
+.landing-main { padding: 1rem; height: calc(100dvh - 3.4rem); overflow-y: auto; }
+.landing-lead {
+  font-family: var(--display-font); text-align: center; color: var(--border-hi);
+  font-size: clamp(1rem, 4vw, 1.35rem); letter-spacing: 0.04em; margin: 0.25rem 0 1rem;
+}
+.faction-list {
+  display: flex; flex-direction: column; gap: 0.6rem;
+  max-width: 560px; margin: 0 auto;
+}
+.faction-tile {
+  display: flex; align-items: center; gap: 0.85rem; width: 100%; text-align: left;
+  padding: 0.7rem 0.9rem; border-radius: 10px; cursor: pointer;
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--parchment-hi), var(--parchment));
+  border: 2px solid var(--parchment-edge);
+  border-left: 6px solid var(--fac-color);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.35), 0 2px 5px rgba(0,0,0,0.45);
+  transition: transform 0.06s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+.faction-tile:hover {
+  border-color: var(--border-hi); border-left-color: var(--fac-color);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 0 0 1px var(--border-hi), 0 3px 8px rgba(0,0,0,0.5);
+  filter: none; transform: translateY(-1px);
+}
+.faction-tile:active { transform: translateY(0); }
+.faction-sigil {
+  width: 46px; height: 46px; flex-shrink: 0;
+  background-color: var(--fac-color);
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: contain; mask-size: contain;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.35));
+}
+.faction-tile-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.faction-name {
+  font-family: var(--display-font); font-weight: 700; font-size: 1.15rem;
+  color: var(--ink); letter-spacing: 0.03em; line-height: 1.1;
+}
+.faction-sub { font-size: 0.78rem; color: #6b5636; }
+/* tiny faction unit roster, in order — pixel sprites at a fixed height, width free */
+.faction-units { display: flex; align-items: flex-end; gap: 3px; margin-top: 0.35rem; flex-wrap: wrap; }
+.faction-unit {
+  height: 22px; width: auto; image-rendering: pixelated;
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,0.28));
+}
+.faction-chevron { font-size: 1.6rem; color: var(--fac-color); flex-shrink: 0; opacity: 0.8; align-self: center; }
+
+@media (min-width: 640px) {
+  .faction-unit { height: 26px; }
+}
+
+@media (min-width: 640px) {
+  .faction-tile { padding: 0.85rem 1.1rem; gap: 1rem; }
+  .faction-sigil { width: 54px; height: 54px; }
+  .faction-name { font-size: 1.3rem; }
+}
 
 /* --- hero header (click to open the hero selector) --- */
 .hero-header {

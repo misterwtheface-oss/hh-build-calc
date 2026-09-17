@@ -14,7 +14,7 @@
 (function () {
   "use strict";
 
-  const DATA = window.HH_DATA || { heroes: [], classes: [], artifacts: [], artifactSets: [], traits: [], effectStat: {} };
+  const DATA = window.HH_DATA || { heroes: [], classes: [], artifacts: [], artifactSets: [], traits: [], factions: [], effectStat: {} };
   const STORAGE_KEY = "hhbc.build";
   const SLOT_COUNT = 10;            // paperdoll: 2-col × 5-row
   const PRIMARY = ["A", "D", "K", "S", "M", "L"];
@@ -33,7 +33,10 @@
   const setById = new Map(DATA.artifactSets.map((s) => [s.id, s]));
 
   // ── state ──
-  const state = { build: load(), ovl: null };
+  // view: "landing" = faction picker (first screen); "build" = the hero build.
+  // Returning users with a saved hero drop straight into their build.
+  const state = { build: load(), ovl: null, view: null };
+  state.view = state.build.heroId != null ? "build" : "landing";
 
   function makeBuild() {
     return { heroId: null, realm: "HH", equipment: Array(SLOT_COUNT).fill(null), stats: { A: 0, D: 0, K: 0, S: 0, M: 0, L: 0 } };
@@ -180,8 +183,35 @@
     </section>`;
   }
 
+  // ═══ LANDING VIEW — vertical parchment faction tiles, in faction order ═══
+  function renderLanding() {
+    const app = document.getElementById("app");
+    const prevScroll = (app.querySelector(".faction-list") || {}).scrollTop || 0;
+    const tiles = DATA.factions.map((f) => `
+      <button class="faction-tile" data-action="open-faction" data-faction="${esc(f.name)}"
+          style="--fac-color:${esc(f.color)}" title="${esc(f.name)} — ${f.heroCount} heroes">
+        <span class="faction-sigil" style="-webkit-mask-image:url('${esc(f.sigil)}');mask-image:url('${esc(f.sigil)}')" aria-hidden="true"></span>
+        <span class="faction-tile-text">
+          <span class="faction-name">${esc(f.name)}</span>
+          <span class="faction-sub">${f.heroCount} heroes</span>
+          ${(f.units && f.units.length) ? `<span class="faction-units">${f.units.map((u) =>
+            `<img class="faction-unit" src="${esc(u.sprite)}" alt="" title="${esc(u.name)}" onerror="this.style.display='none'">`).join("")}</span>` : ""}
+        </span>
+        <span class="faction-chevron" aria-hidden="true">›</span>
+      </button>`).join("");
+    app.innerHTML = `
+      <header class="app-header landing-header"><h1>Hero's Hour Build Calculator</h1></header>
+      <main class="landing-main">
+        <p class="landing-lead">Choose a faction</p>
+        <div class="faction-list">${tiles}</div>
+      </main>`;
+    const list = app.querySelector(".faction-list");
+    if (list) list.scrollTop = prevScroll;
+  }
+
   // ═══ BUILD VIEW ═══
   function renderApp() {
+    if (state.view === "landing") return renderLanding();
     const app = document.getElementById("app");
     const prevMain = app.querySelector(".planning-main");
     const prevScroll = prevMain ? prevMain.scrollTop : 0;
@@ -213,7 +243,7 @@
     }).join("");
 
     app.innerHTML = `
-      <header class="app-header"><h1>Hero's Hour Build Calculator</h1><button class="ghost" data-action="clear">Clear</button></header>
+      <header class="app-header"><button class="ghost" data-action="go-landing">‹ Factions</button><h1>Hero's Hour Build Calculator</h1><button class="ghost" data-action="clear">Clear</button></header>
       <main class="planning-main">
         ${heroHeader}
         <div class="build-body">
@@ -249,9 +279,9 @@
   }
 
   // ═══ SELECTOR OVERLAY (#overlay-root) — hero or slot(artifact) ═══
-  function openHeroOverlay() {
-    state.ovl = { kind: "hero", pending: state.build.heroId, search: "" };
-    openOverlayShell("Choose a hero");
+  function openHeroOverlay(faction) {
+    state.ovl = { kind: "hero", pending: state.build.heroId, search: "", faction: faction || null };
+    openOverlayShell(faction ? `Choose a ${faction} hero` : "Choose a hero");
   }
   function openSlotOverlay(slotIndex) {
     state.ovl = { kind: "artifact", slotIndex, pending: state.build.equipment[slotIndex], search: "" };
@@ -286,7 +316,10 @@
     const q = state.ovl.search.trim().toLowerCase();
 
     if (state.ovl.kind === "hero") {
-      const list = DATA.heroes.filter((h) => !q || h.name.toLowerCase().includes(q) || h.faction.toLowerCase().includes(q) || h.className.toLowerCase().includes(q));
+      const fac = state.ovl.faction;
+      const list = DATA.heroes
+        .filter((h) => !fac || h.faction === fac)
+        .filter((h) => !q || h.name.toLowerCase().includes(q) || h.faction.toLowerCase().includes(q) || h.className.toLowerCase().includes(q));
       panel.querySelector(".ovl-grid").innerHTML = list.length ? list.map((h) => cardHTML(h.id, h.icon, h.name, h.id === state.ovl.pending)).join("") : `<p class="muted">No matches.</p>`;
       const p = state.ovl.pending != null ? heroById.get(state.ovl.pending) : null;
       panel.querySelector(".ovl-left").innerHTML = `<h3>Hero</h3>` + (p
@@ -336,7 +369,7 @@
   function closeOverlay(commit) {
     if (!state.ovl) return;
     if (commit) {
-      if (state.ovl.kind === "hero") state.build.heroId = state.ovl.pending;
+      if (state.ovl.kind === "hero") { state.build.heroId = state.ovl.pending; if (state.build.heroId != null) state.view = "build"; }
       else state.build.equipment[state.ovl.slotIndex] = state.ovl.pending;
       persist();
     }
@@ -390,6 +423,8 @@
     const el = e.target.closest("[data-action]"); if (!el) return;
     // realm toggle sits inside the hero header; don't let its clicks open the hero selector
     switch (el.dataset.action) {
+      case "open-faction": openHeroOverlay(el.dataset.faction); break;
+      case "go-landing": state.view = "landing"; renderApp(); break;
       case "open-hero": openHeroOverlay(); break;
       case "open-slot": openSlotOverlay(Number(el.dataset.slot)); break;
       case "set-realm": e.stopPropagation(); state.build.realm = el.dataset.realm; persist(); renderApp(); break;

@@ -22,13 +22,23 @@ set-completion. Data + assets are compiled from the sibling `_hh_extract` by `bu
 - [ ] Trimmed per-unit display sprites (`unitIdx*20`), unit-type & magic-school trait channels live
 ### Done
 - [x] Skeleton scaffolded, P0 flow runnable (2026-09-14)
+- [x] **Faction landing screen** (2026-09-17) — app now opens on a vertical list of parchment
+  rectangle tiles, one per playable faction in factionIndex order, each with its faction-tinted
+  **sigil** (spr_factions_ white silhouette + CSS mask) and the **Cinzel** display font. Tile →
+  hero selector filtered to that faction; a "‹ Factions" button in the build header returns to it.
+  Returning users (saved hero) skip to the build. Fed by new `data.factions` + `assets/factions/`.
+- [x] **Faction unit rosters on landing tiles** (2026-09-17) — each of the 12 base faction tiles shows
+  its 9 units as tiny ordered pixel sprites (idle frame = `unitIndex*20` off `spr_mob_*`, parsed from
+  `MOBID_base_table.gml`), name on hover. 108 sprites in `assets/units/`; Rogue (no standard town) has
+  no strip. Verified the frame mapping empirically (idx4→Cavalry, idx6→Gryphon).
 
 ## Known issues / warnings
 - Data is an **extract, not golden** — values are decompiled but unverified against the live game.
 - Primary stats are sandbox inputs in P0 (no faithful per-hero/level base yet).
-- **Faction traits have no icon** (colour-only banners). The game's insignia sprites are white
-  silhouettes tinted at runtime, so they render blank as raw PNGs. P1 polish: recolour/tint the
-  insignia (or another emblem source) to ship real faction icons.
+- **Faction trait banners are still colour-only.** SOLVED for the landing (sigils tint via CSS
+  `mask` + `--fac-color`); the trait banners themselves haven't adopted masked sigils yet because a
+  faction-coloured sigil on a same-coloured banner would be invisible. Follow-up: tint the sigil a
+  contrasting ink/cream inside banners if we want icons there too.
 - Any `build-data.mjs` hygiene warnings get parked here as they arise.
 
 ## Session log

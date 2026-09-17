@@ -84,6 +84,30 @@ for (let sid = 1; sid < SET_NAMES.length; sid++) {
 }
 const facTrait = (name) => `fac:${slug(name)}`;
 
+// ── factions (ordered, for the landing screen) ──
+// One row per playable faction in factionIndex order. sigil = white silhouette from spr_factions_
+// (engineFactionIndex; Rogue -> 14), rendered tinted via CSS mask on the client. heroCount is
+// grounded from the roster. This is the landing list; artifacts are faction-neutral and excluded.
+// Per-faction ordered unit roster (tiny sprites for the landing tiles). The 12 base factions
+// (factionIndex 0-11) each carry 9 units in MOBID order; sprite = spr_mob_* frame unitIndex*20,
+// copied by build-assets.mjs to assets/units/<factionIndex>_<unitIndex>.png. Rogue has no town roster.
+const MOBID = extractGmlArray(fs.readFileSync(path.join(EXTRACT, "data/factions/MOBID_base_table.gml"), "utf8"), "global.MOBID = ");
+const factionUnits = (fi) => (fi < 12 && MOBID[fi] ? MOBID[fi].map((u, ui) => ({ name: u[0], sprite: `assets/units/${fi}_${ui}.png` })) : []);
+
+const factionOrder = [...new Set(heroArr.map((h) => h.factionIndex))].sort((a, b) => a - b);
+const factions = factionOrder.map((fi) => {
+  const name = heroArr.find((h) => h.factionIndex === fi).faction;
+  const frame = insigniaFrame(fi); // engineFactionIndex: 0-11 as-is, Rogue(12) -> 14
+  return {
+    name, factionIndex: fi, engineFactionIndex: frame,
+    color: FACTION_COLOR[name] || "#888888",
+    sigil: `assets/factions/${frame}.png`,
+    traitId: facTrait(name),
+    heroCount: heroArr.filter((h) => h.factionIndex === fi).length,
+    units: factionUnits(fi),
+  };
+});
+
 // ── classes ──
 const classes = classArr.map((c) => ({
   id: c.id, name: c.name, classType: c.classType, faction: c.faction,
@@ -142,6 +166,13 @@ for (const t of traits) {
   if (!/^#[0-9a-fA-F]{6}$/.test(t.color)) warnings.push(`trait "${t.id}" invalid colour "${t.color}"`);
   if (t.icon && assetMiss(t.icon)) errors.push(`trait "${t.id}" → assets/${t.icon} (missing)`);
 }
+// factions (landing list): valid colour, resolvable trait, sigil exists
+for (const f of factions) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(f.color)) warnings.push(`faction "${f.name}" invalid colour "${f.color}"`);
+  if (!traitIndex.has(f.traitId)) errors.push(`faction "${f.name}" → trait "${f.traitId}" (no such trait)`);
+  if (assetMiss(f.sigil)) errors.push(`faction "${f.name}" → ${f.sigil} (missing sigil)`);
+  for (const u of f.units) if (assetMiss(u.sprite)) errors.push(`faction "${f.name}" unit "${u.name}" → ${u.sprite} (missing sprite)`);
+}
 // heroes: class resolves, traits resolve, portrait exists
 for (const h of heroes) {
   if (!classById.has(h.classId)) errors.push(`hero ${h.id} "${h.name}" → classId ${h.classId} (no such class)`);
@@ -164,7 +195,7 @@ for (const a of artifacts) {
 // ── report ──
 const assetCount = heroes.length + classes.length + artifacts.length + traits.filter((t) => t.icon).length;
 console.log("── Data hygiene report ─────────────────────");
-console.log(`✓ ${heroes.length} heroes, ${classes.length} classes, ${artifacts.length} artifacts, ${artifactSets.length} sets, ${traits.length} traits; ${assetCount} asset paths checked`);
+console.log(`✓ ${heroes.length} heroes, ${classes.length} classes, ${artifacts.length} artifacts, ${artifactSets.length} sets, ${traits.length} traits, ${factions.length} factions; ${assetCount} asset paths checked`);
 if (errors.length) { console.log(`✗ ${errors.length} error(s):`); errors.slice(0, 40).forEach((e) => console.log(`    ${e}`)); if (errors.length > 40) console.log(`    …and ${errors.length - 40} more`); }
 if (warnings.length) { console.log(`⚠ ${warnings.length} warning(s):`); warnings.slice(0, 20).forEach((w) => console.log(`    ${w}`)); if (warnings.length > 20) console.log(`    …and ${warnings.length - 20} more`); }
 console.log("─".repeat(44));
@@ -174,7 +205,7 @@ if (hard) { console.error(`BUILD FAILED: ${hard} error(s). data.js left untouche
 
 // ── write shipped JSON + data.js ──
 fs.mkdirSync(DATA_DIR, { recursive: true });
-const data = { heroes, classes, artifacts, artifactSets, traits, effectStat: EFFECT_STAT };
+const data = { heroes, classes, artifacts, artifactSets, traits, factions, effectStat: EFFECT_STAT };
 for (const [k, v] of Object.entries(data)) fs.writeFileSync(path.join(DATA_DIR, `${k}.json`), JSON.stringify(v, null, 0));
 fs.writeFileSync(OUT, `window.${ACRONYM}_DATA = ${JSON.stringify(data)};\n`);
 console.log(`Wrote ${OUT} (window.${ACRONYM}_DATA) and ${DATA_DIR}/*.json.`);
