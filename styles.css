@@ -382,7 +382,7 @@ button:hover { filter: brightness(1.1); }
 
 /* consolidated single info panel (hero selector): centered portrait + context blocks */
 .overlay-body.solo-info .ovl-left { display: none; }
-.overlay-body.solo-info .ovl-right { width: 340px; }
+.overlay-body.solo-info .ovl-right { width: 340px; border-left: 2px solid var(--border-hi); background: var(--surface2); }
 .detail-head { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; }
 .detail-icon {
   width: 88px; height: 88px; border: 2px solid var(--border-hi); border-radius: 10px;
@@ -469,12 +469,28 @@ table.player-xref { border-collapse: collapse; font-size: .9rem; }
     width: 100vw; max-width: none; height: 100dvh; max-height: 100dvh; border: none; border-radius: 0;
   }
   .overlay-body { flex-direction: column; }
-  /* List on TOP (the focus), info panel docked at the BOTTOM. */
-  .ovl-center { flex: none; height: 50vh; order: 0; }
+  /* List on TOP (the focus), info panel docked at the BOTTOM. The list is a touch shorter so the
+     info panel gets more room; a gold border + darker fill separates the two so they don't blend. */
+  .ovl-center { flex: none; height: 44vh; order: 0; }
   .ovl-center-scroll { -webkit-overflow-scrolling: touch; }
-  .ovl-info { display: flex; flex-direction: column; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; order: 1; }
+  .ovl-info {
+    display: flex; flex-direction: column; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; order: 1;
+    background: var(--surface2); border-top: 3px solid var(--border-hi);
+  }
   .ovl-left, .ovl-right, .ovl-right-body { overflow: visible; width: auto; border: none; }
   .ovl-right { order: 0; } .ovl-left { order: 1; }
+  /* Consolidated info panel: centered column, larger on mobile. The separation comes from the
+     .ovl-info top border/fill above, so drop the panel's own border/background here. */
+  .overlay-body.solo-info .ovl-right { width: auto; margin: 0 auto; max-width: 480px; border: none; background: transparent; }
+  .overlay-body.solo-info .ovl-right-top,
+  .overlay-body.solo-info .ovl-right-body { width: 100%; max-width: 480px; margin: 0 auto; }
+  .detail-icon { width: 120px; height: 120px; }
+  .detail-head h3 { font-size: 1.35rem; }
+  .detail-sub { font-size: 0.9rem; }
+  .info-block { padding: 0.65rem 0.75rem; margin-top: 0.6rem; }
+  .info-ico { width: 48px; height: 48px; flex-basis: 48px; }
+  .info-name { font-size: 1rem; }
+  .info-desc { font-size: 0.88rem; }
   .overlay-body:not(.has-selection) .ovl-center { height: 100%; }
   .overlay-body:not(.has-selection) .ovl-info { display: none; }
   .build-body { flex-direction: column; }
