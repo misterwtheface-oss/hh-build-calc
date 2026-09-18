@@ -268,7 +268,6 @@
             <div class="panel-box"><h2>Set Bonuses</h2>${setProgressHTML()}</div>
           </div>
         </div>
-        ${xrefMatrixHTML()}
       </main>`;
 
     const newMain = app.querySelector(".planning-main");
@@ -589,6 +588,18 @@
     if (node && skill !== node.major && rankOf(node.major.name) < (skill.rankReq || 0)) return `▲ ${SK_ROMAN[skill.rankReq] || skill.rankReq}`;
     return "";
   }
+  // render an effect: bold each "N(%) … per rank" value, and (once allocated) show the total for the
+  // current rank inline — so leveling the skill visibly increments its bonus.
+  function scaleDesc(desc, rank) {
+    if (!desc) return "";
+    return esc(desc).replace(/([+]?\d+(?:\.\d+)?)(%?)((?:\s+\w+){0,4}\s+per rank)/gi, (m, num, pct, tail) => {
+      const base = `<b class="tk-per">${num}${pct}</b>${tail}`;
+      if (rank <= 0) return base;
+      const sign = num[0] === "+" ? "+" : "";
+      const total = +(parseFloat(num) * rank).toFixed(2);
+      return `${base} <span class="tk-scaled">= ${sign}${total}${pct} at rank ${rank}</span>`;
+    });
+  }
   function findSkill(hero, name) {
     for (const node of heroNodes(hero)) for (const s of [node.major, ...node.subs]) if (s.name === name) return { s, node };
     return null;
@@ -642,7 +653,7 @@
         <span class="tk-row-ico">${s.icon ? `<img src="${esc(s.icon)}" alt="" onerror="this.style.display='none'">` : `<span class="tk-ico-fallback">${esc(s.name[0] || "?")}</span>`}</span>
         <span class="tk-row-info">
           <span class="tk-row-name">${esc(s.name)}</span>
-          ${s.desc ? `<span class="tk-row-desc">${esc(s.desc)}</span>` : ""}
+          ${s.desc ? `<span class="tk-row-desc">${scaleDesc(s.desc, r)}</span>` : ""}
         </span>
         <span class="tk-row-side">
           ${badge}
