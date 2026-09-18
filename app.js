@@ -390,8 +390,7 @@
       <span class="hero-row-id"><span class="hero-row-name">${esc(h.name)}</span></span>
       <span class="hero-row-icons">
         ${miniIcon(h.masterySprite, h.masteryUnit || "—", "mini-unit")}
-        ${miniIcon(h.specialtyIcon, h.specialtySkill || "—", "mini-skill")}
-        ${miniIcon(h.primaryIcon, h.primarySkill || "—", "mini-skill")}
+        ${(h.startsWith || []).slice(0, 2).map((s) => miniIcon(s.icon, s.name, "mini-skill")).join("")}
       </span>
     </div>`;
   }
@@ -440,6 +439,17 @@
       adv ? chip("7-day cooldown") : "",
     ].join("") : "";
 
+    // Starting skills the hero begins with (icon + name + summary), from the on-disk skillset.
+    const skillsHTML = (p.startsWith || []).map((s) => `
+      <div class="skill-row">
+        <span class="info-ico ${s.icon ? "" : "info-ico-empty"}">${s.icon ? `<img src="${esc(s.icon)}" alt="" onerror="this.parentNode.classList.add('info-ico-empty');this.remove()">` : ""}</span>
+        <span class="skill-row-txt"><span class="info-name">${esc(s.name)}</span>${s.desc ? `<span class="skill-row-desc">${esc(s.desc)}</span>` : ""}</span>
+      </div>`).join("");
+    const startingSkillsBlock = (p.startsWith && p.startsWith.length) ? `<div class="info-block">
+        <div class="info-block-head"><span class="info-block-id"><span class="info-kind">Starts with</span></span></div>
+        <div class="skill-list">${skillsHTML}</div>
+      </div>` : "";
+
     return `<div class="ovl-right-top detail-head">
         <div class="detail-icon"><img src="${esc(p.icon)}" alt="" onerror="this.style.visibility='hidden'"></div>
         <h3>${esc(p.name)}</h3>
@@ -447,8 +457,8 @@
       </div>
       <div class="ovl-right-body">
         <div class="primary-traits">${p.traits.map((id) => traitBanner(traitById.get(id))).join("")}</div>
-        ${infoBlock({ kind: "Mastery unit", name: p.masteryUnit, icon: p.masterySprite, meta: muMeta, desc: muDesc })}
-        ${infoBlock({ kind: "Specialty", name: p.specialtySkill, icon: p.specialtyIcon, desc: p.specialtyDescLong || p.specialtyDesc })}
+        ${infoBlock({ kind: "Specialty", name: p.masteryUnit, icon: p.masterySprite, meta: muMeta, desc: muDesc })}
+        ${startingSkillsBlock}
         ${infoBlock({ kind: "Starting spell", name: p.startingSpell, icon: p.startingSpellIcon, meta: spMeta, desc: p.startingSpellDesc })}
         <div class="detail-meta muted">Race: ${esc(p.race || "—")} · Unlock tier: ${esc(String(p.unlockTier))}</div>
       </div>`;

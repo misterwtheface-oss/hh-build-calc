@@ -188,12 +188,19 @@ const heroes = heroArr.map((h) => {
     startingSpellType: spell ? spell.type : null,
     startingSpellTargeting: spell ? spell.targeting : null,
     startingSpellRank: spell ? spell.rank : 0,
+    // The hero's SPECIALTY is the specialty UNIT (roster field [7]; the game calls it the "specialty
+    // unit" — Proficiency/Mastery/Affinity all reference it). Kept under the masteryUnit* names.
     masteryUnit: h.masteryUnit, masterySprite: h.masteryUnit ? (unitSprites[h.masteryUnit] || null) : null,
     masteryUnitStats: h.masteryUnit ? (unitStats[h.masteryUnit] || null) : null,
     masteryUnitAlt: h.masteryUnitAlt || null, masteryUnitAltSprite: h.masteryUnitAlt ? (unitSprites[h.masteryUnitAlt] || null) : null,
-    specialtySkill: h.specialtySkill, specialtyIcon: h.specialtySkill && skills[h.specialtySkill] ? skills[h.specialtySkill].icon : null,
-    specialtyDesc: h.specialtySkill && skillDescs[h.specialtySkill] ? skillDescs[h.specialtySkill].short : null,
-    specialtyDescLong: h.specialtySkill && skillDescs[h.specialtySkill] ? skillDescs[h.specialtySkill].long : null,
+    // Starting skills the hero actually begins with (from the on-disk skillset). Roster field [9] is
+    // NOT a displayed "specialty" — the engine resets it to the skillset array at runtime — so it's
+    // kept only for the skill-tree discount, not surfaced as the hero's specialty.
+    startsWith: ((h.skillset && h.skillset["Starts with"]) || []).map((name) => ({
+      name, icon: (skills[name] && skills[name].icon) || null,
+      desc: (skillDescs[name] && skillDescs[name].short) || null,
+    })),
+    specialtySkill: h.specialtySkill,
     primarySkill, primaryIcon: primarySkill && skills[primarySkill] ? skills[primarySkill].icon : null,
     unlockTier: h.unlockTier, unlockable: h.unlockable,
     skilltree: h.skilltree, skillset: h.skillset,
