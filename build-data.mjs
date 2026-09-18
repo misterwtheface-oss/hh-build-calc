@@ -94,14 +94,14 @@ const facTrait = (name) => `fac:${slug(name)}`;
 const MOBID = extractGmlArray(fs.readFileSync(path.join(EXTRACT, "data/factions/MOBID_base_table.gml"), "utf8"), "global.MOBID = ");
 const factionUnits = (fi) => (fi < 12 && MOBID[fi] ? MOBID[fi].map((u, ui) => ({ name: u[0], sprite: `assets/units/${fi}_${ui}.png` })) : []);
 
-// Global unit-name -> sprite map (mastery units are named, not indexed). Base units win over
-// upgrade names; first occurrence per name.
+// Global unit-name -> sprite path, from the extract's resolved unit_sprites.json (built by
+// _hh_extract/tools/scripts/build_unit_sprites.mjs, which reconstructs runtime global.MOBID and
+// follows findunit(): sheet = mobfaction[group] resource-id, frame = idx*20, +200 for upgrades).
+// Copied to assets/units/<sheet>_<frame>.png by build-assets.mjs. 236/250 mastery (HH) + 45/45 alt
+// resolve; 12 rogue-table-exclusive mastery units are unresolved by design (ASSET_MAP.md).
+const unitSpriteTable = readJSON(path.join(EXTRACT, "data/units/unit_sprites.json"));
 const unitSprites = {};
-for (let fi = 0; fi < 12; fi++) for (let ui = 0; ui < (MOBID[fi] || []).length; ui++) {
-  const u = MOBID[fi][ui];
-  if (u[0] && !(u[0] in unitSprites)) unitSprites[u[0]] = `assets/units/${fi}_${ui}.png`;
-  if (u[1] && !(u[1] in unitSprites)) unitSprites[u[1]] = `assets/units/${fi}_${ui}.png`; // upgraded name shares the block sprite
-}
+for (const [name, u] of Object.entries(unitSpriteTable)) unitSprites[name] = `assets/units/${u.sheet}_${u.frame}.png`;
 
 // Skills map: name -> { icon, maxRanks, category }. maxRanks/category from SKILLSETDATA (the
 // gameplay skill definitions); icon frame from skills_consolidated.json. SKILLSETDATA row =
@@ -175,6 +175,7 @@ const heroes = heroArr.map((h) => {
     startingSpellDesc: h.startingSpell && spellByName.has(h.startingSpell) ? spellByName.get(h.startingSpell).desc : null,
     startingSpellSchool: h.startingSpell && spellByName.has(h.startingSpell) ? spellByName.get(h.startingSpell).school : null,
     masteryUnit: h.masteryUnit, masterySprite: h.masteryUnit ? (unitSprites[h.masteryUnit] || null) : null,
+    masteryUnitAlt: h.masteryUnitAlt || null, masteryUnitAltSprite: h.masteryUnitAlt ? (unitSprites[h.masteryUnitAlt] || null) : null,
     specialtySkill: h.specialtySkill, specialtyIcon: h.specialtySkill && skills[h.specialtySkill] ? skills[h.specialtySkill].icon : null,
     specialtyDesc: h.specialtySkill && skills[h.specialtySkill] ? skills[h.specialtySkill].shortDesc : null,
     primarySkill, primaryIcon: primarySkill && skills[primarySkill] ? skills[primarySkill].icon : null,

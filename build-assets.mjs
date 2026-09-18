@@ -96,6 +96,18 @@ for (const name of refSpells) {
   if (frame != null) copyFrame("spr_spellicons_", frame, "spells", String(frame));
 }
 
+// mastery unit icons: resolve each hero's mastery unit (HH `masteryUnit` + RR `masteryUnitAlt`) to
+// its battle sprite via the extract's unit_sprites.json (see _hh_extract/tools/build_unit_sprites.mjs)
+// and copy that one idle frame → assets/units/<sheet>_<frame>.png (lean; the full 32k-frame dump stays
+// in the extract). 12 rogue-exclusive mastery units are unresolved by design (documented in ASSET_MAP).
+const unitSprites = readJSON(path.join(EXTRACT, "data", "units", "unit_sprites.json"));
+const refUnits = new Set();
+for (const h of heroArr) { if (h.masteryUnit) refUnits.add(h.masteryUnit); if (h.masteryUnitAlt) refUnits.add(h.masteryUnitAlt); }
+for (const name of refUnits) {
+  const u = unitSprites[name];
+  if (u) copyFrame(u.sheet, u.frame, "units", `${u.sheet}_${u.frame}`);
+}
+
 console.log(`build-assets: copied ${copied} sprite frames into ${ASSETS}/.`);
 if (missing.length) {
   console.warn(`⚠ ${missing.length} source frame(s) missing in the extract:`);
