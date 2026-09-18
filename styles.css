@@ -265,23 +265,17 @@ button:hover { filter: brightness(1.1); }
 /* --- build body: paperdoll + stat panel --- */
 .build-body { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1rem; max-width: 680px; }
 
-/* paperdoll: 10 slots in a 2-col × 5-row grid over the class silhouette */
+/* paperdoll mirrors the in-game layout: class silhouette centered, 5 artifact slots per side */
 .paperdoll {
-  position: relative;
+  display: flex; align-items: stretch; justify-content: center; gap: 0.6rem;
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
   padding: 0.75rem; flex: 0 0 auto;
 }
-.paperdoll-silhouette {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  opacity: 0.12; pointer-events: none;
-}
-.paperdoll-silhouette img { height: 88%; object-fit: contain; }
-.paperdoll-grid {
-  position: relative; display: grid; grid-template-columns: repeat(2, var(--slot-size));
-  gap: 0.55rem;
-}
+.paperdoll-col { display: flex; flex-direction: column; gap: 0.55rem; }
+.paperdoll-mid { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; padding: 0 0.2rem; }
+.paperdoll-mid img { height: 100%; max-height: calc(5 * var(--slot-size) + 4 * 0.55rem); width: auto; object-fit: contain; image-rendering: pixelated; opacity: 0.9; }
 .slot {
-  position: relative; aspect-ratio: 1;
+  position: relative; width: var(--slot-size); aspect-ratio: 1; flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center;
   background: rgba(33, 24, 18, 0.72); border: 1px solid var(--border); border-radius: 8px;
   cursor: pointer;

@@ -237,20 +237,30 @@
         <div class="hero-id"><h2 class="hero-empty">Select a hero</h2><div class="hero-sub muted">Click to choose from 250 heroes</div></div>
       </div>`;
 
-    const silhouette = cls ? `<div class="paperdoll-silhouette"><img src="${esc(cls.icon)}" alt="" onerror="this.style.display='none'"></div>` : "";
-    const slots = state.build.equipment.map((id, i) => {
+    // Paperdoll mirrors the in-game layout (army_scripts.gml:3668-3684): the class silhouette sits in
+    // the MIDDLE with artifact slots in two flanking columns — nx = base + 240*(i%2), ny row = i div 2.
+    // So the left column is slots 0,2,4,6,8 and the right column is 1,3,5,7,9 (top → bottom).
+    const slotHTML = (i) => {
+      const id = state.build.equipment[i];
       const a = id ? artById.get(id) : null;
       const q = a ? QUALITY_COLOR[a.quality] || "var(--border-hi)" : "";
       const inner = a ? `<img src="${esc(a.icon)}" alt="" title="${esc(a.name)}" onerror="this.style.visibility='hidden'">` : `<span class="slot-empty">+</span>`;
       return `<div class="slot ${a ? "filled" : ""}" style="${a ? `--q-color:${q}` : ""}" data-action="open-slot" data-slot="${i}" title="${a ? esc(a.name) : "Slot " + (i + 1)}">${inner}</div>`;
-    }).join("");
+    };
+    const leftCol = [0, 2, 4, 6, 8].map(slotHTML).join("");
+    const rightCol = [1, 3, 5, 7, 9].map(slotHTML).join("");
+    const silhouette = cls ? `<img src="${esc(cls.icon)}" alt="${esc(hero ? hero.className : "")}" onerror="this.style.visibility='hidden'">` : "";
 
     app.innerHTML = `
       <header class="app-header"><button class="ghost" data-action="go-landing">‹ Factions</button><h1>Hero's Hour Build Calculator</h1><button class="ghost" data-action="clear">Clear</button></header>
       <main class="planning-main">
         ${heroHeader}
         <div class="build-body">
-          <div class="paperdoll">${silhouette}<div class="paperdoll-grid">${slots}</div></div>
+          <div class="paperdoll">
+            <div class="paperdoll-col">${leftCol}</div>
+            <div class="paperdoll-mid">${silhouette}</div>
+            <div class="paperdoll-col">${rightCol}</div>
+          </div>
           <div class="stat-panel">
             <div class="panel-box"><h2>Primary Stats</h2>${statSteppersHTML()}</div>
             <div class="panel-box"><h2>Totals</h2>${statTableHTML()}</div>
@@ -367,7 +377,8 @@
       if (!groups.has(h.classId)) groups.set(h.classId, { classId: h.classId, className: h.className, classType: h.classType, faction: h.faction, heroes: [] });
       groups.get(h.classId).heroes.push(h);
     }
-    const ordered = [...groups.values()].sort((a, b) => a.faction.localeCompare(b.faction) || a.classType.localeCompare(b.classType) || a.classId - b.classId);
+    // Order classes as the in-game lexicon does: by classId (faction-grouped, fighter before caster).
+    const ordered = [...groups.values()].sort((a, b) => a.classId - b.classId);
     return ordered.map((g) => `
       <section class="hero-group">
         <header class="hero-group-head">
