@@ -538,153 +538,114 @@
     root.classList.add("hidden"); root.setAttribute("aria-hidden", "true"); root.innerHTML = "";
   }
 
-  // ═══ SKILL TREE (#detail-overlay-root) ═══
-  // Faithful reconstruction of Hero's Hour's skill pyramid + level gating (grounded in
-  // army_scripts.gml / hero_scripts.gml draw_skillpyramid_ext):
-  //   rows: Starting(2) · 2nd(4) · 3rd(5) · 4th(4), from hero.skilltree[realm]; Mastery-unit tip.
-  //   level to raise a skill to its next rank = ROW_BASE[iy] + RANK_COST[rank] − 5·isSpecialty.
-  //   prerequisite: a child's rank can't exceed its highest connected parent (row above, ix-1/ix).
-  //   hero level = 1 + total ranks allocated (each level-up = one point), so level rises as you spend.
-  const ROW_BASE = [-4, 0, 4, 6];
-  const RANK_COST = [1, 4, 9, 15, 22, 30, 40, 50, 60, 70, 80, 90, 100];
-  const TREE_ROWS = [
-    ["Starting Skill 1", "Starting Skill 2"],
-    ["2nd row 1", "2nd row 2", "2nd row 3", "2nd row 4"],
-    ["3rd row 1", "3rd row 2", "3rd row middle", "3rd row 3", "3rd row 4"],
-    ["4th row 1", "4th row 2", "4th row 3", "4th row 4"],
-  ];
-  const skillMeta = (name) => (name && DATA.skills[name]) || null;
-  const maxRankOf = (name) => { const m = skillMeta(name); return m ? m.maxRanks : 3; };
+  // ═══ SKILL TREE (#detail-overlay-root) — CURRENT 6-node model ═══
+  // A hero's tree = its `learnable` nodes (major/class skills). Each node shows its group's
+  // sub-skills, pre-filtered per hero in build-data. Gating (SKILLSETDATA, hero_scripts.gml:18383+):
+  //   hero level = 1 + total ranks; a skill needs level ≥ lvlReq; a sub-skill also needs its node's
+  //   major skill at rank ≥ rankReq; maxRanks per skill. (The old tiered pyramid was legacy data.)
+  const SETS = DATA.skillsets || { majorIndex: {}, groups: [] };
+  const SK_ROMAN = ["", "I", "II", "III", "IV", "V", "VI"];
 
-  function treeGrid(hero, realm) {
-    const t = (hero.skilltree && hero.skilltree[realm]) || {};
-    return TREE_ROWS.map((slots, iy) => slots.map((slot, ix) => ({ iy, ix, slot, skill: t[slot] || null })));
+  // sub-skill faction/class filter (hero_scripts.gml:18277 hero_subskill_available)
+  function availFor(hero, v) {
+    if (!v) return true;
+    const d = Math.floor(v / 100), m = v % 100;
+    if (d === 1) return hero.factionIndex === m;
+    if (d === 2) return hero.factionIndex !== m;
+    if (d === 3) return hero.classId === m;
+    if (d === 4) return hero.classId !== m;
+    return true;
   }
-  function treeCells(grid) { const out = []; for (const row of grid) for (const c of row) if (c.skill) out.push(c); return out; }
-  function parentsOf(grid, iy, ix) {
-    if (iy === 0) return [];
-    const prev = grid[iy - 1], res = [];
-    if (prev[ix - 1] && prev[ix - 1].skill) res.push(prev[ix - 1]);
-    if (prev[ix] && prev[ix].skill) res.push(prev[ix]);
-    return res;
-  }
-  const rankOf = (ranks, name) => Number(ranks[name] || 0);
-  function levelFrom(grid, ranks) { let n = 0; for (const c of treeCells(grid)) n += rankOf(ranks, c.skill); return 1 + n; }
-  // returns "" if valid, else a reason string for the FIRST violation
-  function treeInvalidReason(hero, grid, ranks) {
-    const L = levelFrom(grid, ranks);
-    for (const c of treeCells(grid)) {
-      const r = rankOf(ranks, c.skill); if (r <= 0) continue;
-      if (r > maxRankOf(c.skill)) return `${c.skill} over max rank`;
-      const spec = c.skill === hero.specialtySkill ? 5 : 0;
-      const need = ROW_BASE[c.iy] + RANK_COST[r - 1] - spec;
-      if (L < need) return `${c.skill} needs level ${need}`;
-      const ps = parentsOf(grid, c.iy, c.ix);
-      if (ps.length) { const mp = Math.max(...ps.map((p) => rankOf(ranks, p.skill))); if (mp < r) return `${c.skill} needs a higher parent skill`; }
+  // the ≤6 nodes for a hero: {major, subs[]} — major = the learnable skill record; subs filtered.
+  function heroNodes(hero) {
+    const nodes = [];
+    for (const name of hero.learnable || []) {
+      const gi = SETS.majorIndex[name]; if (gi == null) continue;
+      const g = SETS.groups[gi];
+      const major = g.majors.find((mm) => mm.name === name) || { name, maxRanks: 4, lvlReq: 0, rankReq: 0, icon: null };
+      nodes.push({ major, subs: g.subs.filter((s) => availFor(hero, s.avail)) });
     }
+    return nodes;
+  }
+  const rankOf = (name) => Number(state.build.skillRanks[name] || 0);
+  function totalRanks() { let n = 0; for (const k in state.build.skillRanks) n += Number(state.build.skillRanks[k] || 0); return n; }
+  const heroLevel = () => 1 + totalRanks();
+
+  function canInc(skill, node) {
+    if (rankOf(skill.name) >= skill.maxRanks) return false;
+    if (heroLevel() < (skill.lvlReq || 0)) return false;
+    if (node && skill !== node.major && rankOf(node.major.name) < (skill.rankReq || 0)) return false;
+    return true;
+  }
+  // short reason a not-yet-allocated skill is locked ("" if allocatable)
+  function lockReason(skill, node) {
+    if (heroLevel() < (skill.lvlReq || 0)) return `Lv ${skill.lvlReq}`;
+    if (node && skill !== node.major && rankOf(node.major.name) < (skill.rankReq || 0)) return `${node.major.name} ${SK_ROMAN[skill.rankReq] || skill.rankReq}`;
     return "";
   }
-  // level required to take THIS skill from its current rank to the next (for display / gating)
-  function nextRankLevel(hero, grid, c) {
-    const r = rankOf(state.build.skillRanks, c.skill);
-    const spec = c.skill === hero.specialtySkill ? 5 : 0;
-    return ROW_BASE[c.iy] + RANK_COST[r] - spec;
-  }
-  function canInc(hero, grid, c) {
-    const ranks = state.build.skillRanks, r = rankOf(ranks, c.skill);
-    if (r >= maxRankOf(c.skill)) return false;
-    const trial = { ...ranks, [c.skill]: r + 1 };
-    return treeInvalidReason(hero, grid, trial) === "";
+  function findSkill(hero, name) {
+    for (const node of heroNodes(hero)) for (const s of [node.major, ...node.subs]) if (s.name === name) return { s, node };
+    return null;
   }
   function incSkill(name) {
     const hero = heroById.get(state.build.heroId); if (!hero) return;
-    const grid = treeGrid(hero, state.build.realm);
-    const c = treeCells(grid).find((x) => x.skill === name); if (!c) return;
-    if (!canInc(hero, grid, c)) return;
-    state.build.skillRanks[name] = rankOf(state.build.skillRanks, name) + 1;
-    persist(); renderSkillTree();
+    const f = findSkill(hero, name); if (!f || !canInc(f.s, f.node)) return;
+    state.build.skillRanks[name] = rankOf(name) + 1; persist(); renderSkillTree();
   }
-  function decSkill(name) {
-    const hero = heroById.get(state.build.heroId); if (!hero) return;
-    const grid = treeGrid(hero, state.build.realm);
-    const ranks = state.build.skillRanks;
-    if (rankOf(ranks, name) <= 0) return;
-    ranks[name] = rankOf(ranks, name) - 1;
-    if (ranks[name] === 0) delete ranks[name];
-    pruneToValid(hero, grid);           // cascade: drop any ranks the lower level now invalidates
-    persist(); renderSkillTree();
-  }
-  function pruneToValid(hero, grid) {
-    const ranks = state.build.skillRanks;
+  // drop ranks the current level/major-rank no longer supports (cascade after a decrement)
+  function pruneInvalid(hero) {
+    const byName = {}, nodeOf = {};
+    for (const node of heroNodes(hero)) for (const s of [node.major, ...node.subs]) { byName[s.name] = s; nodeOf[s.name] = node; }
+    for (const k of Object.keys(state.build.skillRanks)) if (!byName[k]) delete state.build.skillRanks[k]; // not in this hero's tree
     let guard = 0;
-    while (treeInvalidReason(hero, grid, ranks) && guard++ < 500) {
-      const L = levelFrom(grid, ranks);
-      // find an offending cell (deepest row / highest rank first) and shed a rank
-      const offenders = treeCells(grid).filter((c) => {
-        const r = rankOf(ranks, c.skill); if (r <= 0) return false;
-        const spec = c.skill === hero.specialtySkill ? 5 : 0;
-        if (L < ROW_BASE[c.iy] + RANK_COST[r - 1] - spec) return true;
-        const ps = parentsOf(grid, c.iy, c.ix);
-        return ps.length && Math.max(...ps.map((p) => rankOf(ranks, p.skill))) < r;
-      }).sort((a, b) => (b.iy - a.iy) || (rankOf(ranks, b.skill) - rankOf(ranks, a.skill)));
-      if (!offenders.length) break;
-      const o = offenders[0];
-      ranks[o.skill] = rankOf(ranks, o.skill) - 1;
-      if (ranks[o.skill] === 0) delete ranks[o.skill];
+    for (;;) {
+      if (guard++ > 500) break;
+      const L = heroLevel(); let bad = null;
+      for (const name of Object.keys(state.build.skillRanks)) {
+        const r = rankOf(name); if (r <= 0) continue;
+        const s = byName[name], node = nodeOf[name];
+        if (r > s.maxRanks || L < (s.lvlReq || 0) || (s !== node.major && rankOf(node.major.name) < (s.rankReq || 0))) { bad = name; break; }
+      }
+      if (!bad) break;
+      const nr = rankOf(bad) - 1; if (nr <= 0) delete state.build.skillRanks[bad]; else state.build.skillRanks[bad] = nr;
     }
   }
-  function pruneStale(hero, realm) {
-    // drop allocations for skills not in the current hero/realm tree
-    const grid = treeGrid(hero, realm);
-    const valid = new Set(treeCells(grid).map((c) => c.skill));
-    let changed = false;
-    for (const k of Object.keys(state.build.skillRanks)) if (!valid.has(k)) { delete state.build.skillRanks[k]; changed = true; }
-    if (changed) pruneToValid(hero, grid);
-    return changed;
+  function decSkill(name) {
+    const hero = heroById.get(state.build.heroId); if (!hero || rankOf(name) <= 0) return;
+    const nr = rankOf(name) - 1; if (nr <= 0) delete state.build.skillRanks[name]; else state.build.skillRanks[name] = nr;
+    pruneInvalid(hero); persist(); renderSkillTree();
   }
-
   function openSkillTree() {
     const hero = state.build.heroId != null ? heroById.get(state.build.heroId) : null;
     if (!hero) { openHeroOverlay(); return; }
-    pruneStale(hero, state.build.realm);
-    renderSkillTree();
+    pruneInvalid(hero); renderSkillTree();
   }
   function renderSkillTree() {
     const hero = heroById.get(state.build.heroId); if (!hero) return;
-    const realm = state.build.realm;
-    const grid = treeGrid(hero, realm);
-    const ranks = state.build.skillRanks;
-    const level = levelFrom(grid, ranks);
-    const points = level - 1;
-    const t = (hero.skilltree && hero.skilltree[realm]) || {};
-    const masteryUnit = t["Mastery Unit"] || hero.masteryUnit || null;
-    const masterySprite = masteryUnit ? DATA.unitSprites[masteryUnit] : null;
+    const nodes = heroNodes(hero);
+    const level = heroLevel(), points = level - 1;
 
-    const nodeHTML = (c) => {
-      if (!c.skill) return `<div class="tk-node tk-empty"></div>`;
-      const meta = skillMeta(c.skill), max = maxRankOf(c.skill), r = rankOf(ranks, c.skill);
-      const spec = c.skill === hero.specialtySkill;
-      const canUp = canInc(hero, grid, c);
-      const need = nextRankLevel(hero, grid, c);
-      const locked = r === 0 && !canUp;
+    const cellHTML = (s, node, isMajor) => {
+      const r = rankOf(s.name), max = s.maxRanks, can = canInc(s, node);
+      const lock = r === 0 ? lockReason(s, node) : "";
       const pips = Array.from({ length: max }, (_, i) => `<span class="tk-pip ${i < r ? "on" : ""}"></span>`).join("");
-      return `<div class="tk-node ${r > 0 ? "allocated" : ""} ${locked ? "locked" : ""} ${spec ? "spec" : ""}" title="${esc(c.skill)}${spec ? " (specialty)" : ""}">
-        <div class="tk-icon">${meta && meta.icon ? `<img src="${esc(meta.icon)}" alt="" onerror="this.style.display='none'">` : `<span class="tk-ico-fallback">${esc(c.skill[0])}</span>`}</div>
-        <div class="tk-name">${esc(c.skill)}</div>
+      return `<div class="tk-node ${isMajor ? "tk-major" : ""} ${r > 0 ? "allocated" : ""} ${r === 0 && !can ? "locked" : ""}" title="${esc(s.name)}${s.desc ? " — " + esc(s.desc) : ""}">
+        <div class="tk-icon">${s.icon ? `<img src="${esc(s.icon)}" alt="" onerror="this.style.display='none'">` : `<span class="tk-ico-fallback">${esc(s.name[0])}</span>`}</div>
+        <div class="tk-name">${esc(s.name)}</div>
         <div class="tk-pips">${pips}</div>
         <div class="tk-ctrl">
-          <button class="tk-btn" data-action="skill-dec" data-skill="${esc(c.skill)}" ${r <= 0 ? "disabled" : ""}>−</button>
+          <button class="tk-btn" data-action="skill-dec" data-skill="${esc(s.name)}" ${r <= 0 ? "disabled" : ""}>−</button>
           <span class="tk-rank">${r}/${max}</span>
-          <button class="tk-btn" data-action="skill-inc" data-skill="${esc(c.skill)}" ${r >= max || !canUp ? "disabled" : ""}>+</button>
+          <button class="tk-btn" data-action="skill-inc" data-skill="${esc(s.name)}" ${r >= max || !can ? "disabled" : ""}>+</button>
         </div>
-        ${r < max ? `<div class="tk-req ${canUp ? "ok" : "no"}">Lv ${need}</div>` : `<div class="tk-req max">MAX</div>`}
+        ${lock ? `<div class="tk-req no">${esc(lock)}</div>` : (r >= max ? `<div class="tk-req max">MAX</div>` : `<div class="tk-req ok">&nbsp;</div>`)}
       </div>`;
     };
-    const rowsHTML = grid.map((row, iy) => `
-      <div class="tk-row tk-row-${iy}">
-        <div class="tk-row-tier">T${iy + 1}<span class="tk-row-lvl">Lv ${ROW_BASE[iy] + RANK_COST[0]}+</span></div>
-        <div class="tk-row-nodes">${row.map(nodeHTML).join("")}</div>
-      </div>`).join("");
+    const nodesHTML = nodes.map((node) => `
+      <section class="tk-nodegroup">
+        <div class="tk-nodegroup-major">${cellHTML(node.major, node, true)}</div>
+        <div class="tk-nodegroup-subs">${node.subs.map((s) => cellHTML(s, node, false)).join("")}</div>
+      </section>`).join("");
 
     const root = document.getElementById("detail-overlay-root");
     const prev = root.querySelector(".tk-scroll");
@@ -692,7 +653,7 @@
     root.innerHTML = `
       <div class="overlay-panel skilltree-panel" role="dialog" aria-modal="true">
         <div class="overlay-header">
-          <h2>${esc(hero.name)} — Skill Tree <span class="muted">(${realm === "RR" ? "Rogue" : "Base"})</span></h2>
+          <h2>${esc(hero.name)} — Skill Tree</h2>
           <button class="overlay-close" data-action="close-detail" aria-label="Close">&times;</button>
         </div>
         <div class="tk-bar">
@@ -701,9 +662,8 @@
           <button class="ghost" data-action="skill-reset">Reset</button>
         </div>
         <div class="overlay-body"><div class="tk-scroll">
-          ${rowsHTML}
-          ${masterySprite ? `<div class="tk-mastery"><div class="tk-mastery-icon"><img src="${esc(masterySprite)}" alt="" onerror="this.style.display='none'"></div><div class="tk-mastery-txt"><span class="muted">Mastery unit</span><b>${esc(masteryUnit)}</b></div></div>` : ""}
-          <p class="tk-note muted">Deeper tiers and higher ranks need a higher hero level — spend points in earlier skills to reach them. A skill can't out-rank its connected parent.</p>
+          ${nodes.length ? nodesHTML : `<p class="muted">This hero has no skill-tree data.</p>`}
+          <p class="tk-note muted">Each node is a major skill with its sub-skills. Raising anything costs a level; a sub-skill unlocks at its required level and once its node's major skill reaches the required rank.</p>
         </div></div>
         <div class="overlay-footer"><button data-action="close-detail">Done</button></div>
       </div>`;
@@ -723,7 +683,7 @@
       case "open-skilltree": e.stopPropagation(); openSkillTree(); break;
       case "set-realm": {
         e.stopPropagation();
-        if (state.build.realm !== el.dataset.realm) { state.build.realm = el.dataset.realm; const h = heroById.get(state.build.heroId); if (h) pruneStale(h, state.build.realm); persist(); renderApp(); }
+        if (state.build.realm !== el.dataset.realm) { state.build.realm = el.dataset.realm; persist(); renderApp(); }
         break;
       }
       case "stat-inc": bumpStat(el.dataset.key, +1); break;

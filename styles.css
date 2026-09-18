@@ -216,6 +216,13 @@ button:hover { filter: brightness(1.1); }
 .tk-mastery-txt { display: flex; flex-direction: column; }
 .tk-note { font-size: 0.72rem; margin-top: 0.8rem; text-align: center; }
 
+/* 6-node skill-tree layout (current model): each node = major/class skill + its sub-skills */
+.tk-nodegroup { border: 1px solid var(--border); border-radius: 10px; background: var(--surface2); padding: 0.55rem 0.6rem 0.7rem; margin-bottom: 0.7rem; }
+.tk-nodegroup-major { display: flex; justify-content: center; margin-bottom: 0.55rem; padding-bottom: 0.55rem; border-bottom: 1px solid var(--border); }
+.tk-nodegroup-subs { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; }
+.tk-node.tk-major { width: 100px; border-color: var(--border-hi); background: linear-gradient(180deg, #3a2c1c, var(--surface)); box-shadow: 0 0 0 1px var(--border-hi); }
+.tk-node.tk-major .tk-name { font-weight: 700; color: var(--border-hi); }
+
 @media (min-width: 640px) {
   .tk-node { width: 84px; }
   .tk-name { font-size: 0.66rem; }

@@ -81,6 +81,11 @@ for (const h of heroArr) {
   if (h.specialtySkill) refSkills.add(h.specialtySkill);
   (h.skillset && h.skillset["Starts with"] || []).forEach((n) => refSkills.add(n));
 }
+// also every skill in the 6-node skill-tree model (majors + sub-skills), so the tree renders icons.
+{
+  const skillsets = readJSON(path.join(EXTRACT, "data", "skills", "skillsets.json"));
+  for (const g of skillsets.groups) for (const s of [...g.majors, ...g.subs]) refSkills.add(s.name);
+}
 for (const name of refSkills) {
   const frame = iconByName.get(name);
   if (frame != null) copyFrame("spr_skills_RR", frame, "skills", String(frame));

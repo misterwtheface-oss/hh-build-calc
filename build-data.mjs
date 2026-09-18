@@ -128,6 +128,14 @@ for (const r of spellRows) if (!spellByName.has(r[0])) spellByName.set(r[0], {
 // Unit stats (data/units/unit_stats.json) + per-skill descriptions (data/skills/skill_descs.json).
 const unitStats = readJSON(path.join(EXTRACT, "data/units/unit_stats.json"));
 const skillDescs = readJSON(path.join(EXTRACT, "data/skills/skill_descs.json"));
+
+// Skill-tree model (CURRENT 6-node design): skillsets.json groups each major/class skill with its
+// sub-skills; a hero's tree = its Learnable list of nodes, sub-skills filtered per hero by `avail`.
+const skillIconMap = readJSON(path.join(EXTRACT, "data/skills/skill_icons.json"));
+const skillIconPath = (name) => { const e = skillIconMap.byName[name]; return e ? `assets/skills/${e.iconFrame}.png` : null; };
+const skillsetsRaw = readJSON(path.join(EXTRACT, "data/skills/skillsets.json"));
+const decorateSkill = (s) => ({ name: s.name, icon: skillIconPath(s.name), maxRanks: s.maxRanks, lvlReq: s.lvlReq, rankReq: s.rankReq, avail: s.avail, desc: (skillDescs[s.name] && skillDescs[s.name].short) || null });
+const skillsets = { majorIndex: skillsetsRaw.majorIndex, groups: skillsetsRaw.groups.map((g) => ({ majors: g.majors.map(decorateSkill), subs: g.subs.map(decorateSkill) })) };
 const skills = {};
 {
   const ref = new Set();
@@ -201,6 +209,7 @@ const heroes = heroArr.map((h) => {
       desc: (skillDescs[name] && skillDescs[name].short) || null,
     })),
     specialtySkill: h.specialtySkill,
+    learnable: ((h.skillset && h.skillset.Learnable) || []),   // the 6 skill-tree nodes (major/class skills)
     primarySkill, primaryIcon: primarySkill && skills[primarySkill] ? skills[primarySkill].icon : null,
     unlockTier: h.unlockTier, unlockable: h.unlockable,
     skilltree: h.skilltree, skillset: h.skillset,
@@ -293,7 +302,7 @@ if (hard) { console.error(`BUILD FAILED: ${hard} error(s). data.js left untouche
 
 // ── write shipped JSON + data.js ──
 fs.mkdirSync(DATA_DIR, { recursive: true });
-const data = { heroes, classes, artifacts, artifactSets, traits, factions, skills, unitSprites, effectStat: EFFECT_STAT };
+const data = { heroes, classes, artifacts, artifactSets, traits, factions, skills, skillsets, unitSprites, effectStat: EFFECT_STAT };
 for (const [k, v] of Object.entries(data)) fs.writeFileSync(path.join(DATA_DIR, `${k}.json`), JSON.stringify(v, null, 0));
 fs.writeFileSync(OUT, `window.${ACRONYM}_DATA = ${JSON.stringify(data)};\n`);
 console.log(`Wrote ${OUT} (window.${ACRONYM}_DATA) and ${DATA_DIR}/*.json.`);
