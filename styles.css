@@ -267,13 +267,13 @@ button:hover { filter: brightness(1.1); }
 
 /* paperdoll mirrors the in-game layout: class silhouette centered, 5 artifact slots per side */
 .paperdoll {
-  display: flex; align-items: stretch; justify-content: center; gap: 0.6rem;
+  display: flex; align-items: stretch; justify-content: center; gap: 1.4rem;
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-  padding: 0.75rem; flex: 0 0 auto;
+  padding: 0.75rem 1rem; flex: 0 0 auto;
 }
 .paperdoll-col { display: flex; flex-direction: column; gap: 0.55rem; }
-.paperdoll-mid { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; padding: 0 0.2rem; }
-.paperdoll-mid img { height: 100%; max-height: calc(5 * var(--slot-size) + 4 * 0.55rem); width: auto; object-fit: contain; image-rendering: pixelated; opacity: 0.9; }
+.paperdoll-mid { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; padding: 0 0.5rem; }
+.paperdoll-mid img { height: 100%; max-height: calc(5 * var(--slot-size) + 4 * 0.55rem); width: auto; max-width: 120px; object-fit: contain; image-rendering: pixelated; opacity: 0.9; }
 .slot {
   position: relative; width: var(--slot-size); aspect-ratio: 1; flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center;
