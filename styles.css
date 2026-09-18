@@ -120,7 +120,7 @@ button:hover { filter: brightness(1.1); }
 .hg-type { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
 .hg-count { margin-left: auto; font-size: 0.75rem; color: var(--text-dim); }
 .hero-group-body {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 0.4rem; padding: 0.5rem;
 }
 .hero-row {
@@ -452,6 +452,11 @@ table.player-xref { border-collapse: collapse; font-size: .9rem; }
   .overlay-body:not(.has-selection) .ovl-info { display: none; }
   .build-body { flex-direction: column; }
   .paperdoll { align-self: center; }
+  /* Two hero tiles per row on phones; icons wrap under the name so the narrow
+     tile still fits (auto-fill minmax can't get 2 columns at phone widths). */
+  .hero-group-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hero-row { flex-wrap: wrap; }
+  .hero-row-icons { flex-basis: 100%; justify-content: flex-start; margin-top: 2px; }
 }
 @media (max-width: 380px) { :root { --slot-size: 52px; } }
 
