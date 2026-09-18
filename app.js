@@ -190,11 +190,10 @@
     const prevScroll = (app.querySelector(".faction-list") || {}).scrollTop || 0;
     const tiles = DATA.factions.map((f) => `
       <button class="faction-tile" data-action="open-faction" data-faction="${esc(f.name)}"
-          style="--fac-color:${esc(f.color)}" title="${esc(f.name)} — ${f.heroCount} heroes">
+          style="--fac-color:${esc(f.color)}" title="${esc(f.name)}">
         <span class="faction-sigil" style="-webkit-mask-image:url('${esc(f.sigil)}');mask-image:url('${esc(f.sigil)}')" aria-hidden="true"></span>
         <span class="faction-tile-text">
           <span class="faction-name">${esc(f.name)}</span>
-          <span class="faction-sub">${f.heroCount} heroes</span>
           ${(f.units && f.units.length) ? `<span class="faction-units">${f.units.map((u) =>
             `<img class="faction-unit" src="${esc(u.sprite)}" alt="" title="${esc(u.name)}" onerror="this.style.display='none'">`).join("")}</span>` : ""}
         </span>

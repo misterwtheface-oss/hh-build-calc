@@ -96,7 +96,6 @@ button:hover { filter: brightness(1.1); }
   font-family: var(--display-font); font-weight: 700; font-size: 1.15rem;
   color: var(--ink); letter-spacing: 0.03em; line-height: 1.1;
 }
-.faction-sub { font-size: 0.78rem; color: #6b5636; }
 /* tiny faction unit roster, in order — each sprite sits in a FIXED square cell (object-fit
    contain) so every row is exactly the same height regardless of native sprite dimensions */
 .faction-units { display: flex; align-items: center; gap: 2px; margin-top: 0.35rem; flex-wrap: nowrap; }
@@ -120,14 +119,16 @@ button:hover { filter: brightness(1.1); }
 .hg-title { font-family: var(--display-font); font-weight: 600; color: var(--border-hi); font-size: 0.98rem; }
 .hg-type { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
 .hg-count { margin-left: auto; font-size: 0.75rem; color: var(--text-dim); }
-.hero-group-body { display: flex; flex-direction: column; }
+.hero-group-body {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.4rem; padding: 0.5rem;
+}
 .hero-row {
   display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.6rem; cursor: pointer;
-  border-top: 1px solid rgba(0,0,0,0.25);
+  border: 1px solid var(--border); border-radius: 6px; background: var(--surface);
 }
-.hero-row:first-child { border-top: none; }
-.hero-row:hover { background: rgba(217,164,65,0.10); }
-.hero-row.selected { background: rgba(217,164,65,0.20); box-shadow: inset 3px 0 0 var(--border-hi); }
+.hero-row:hover { background: rgba(217,164,65,0.10); border-color: var(--border-hi); }
+.hero-row.selected { background: rgba(217,164,65,0.20); border-color: var(--border-hi); box-shadow: inset 3px 0 0 var(--border-hi); }
 .hero-row-portrait {
   width: 40px; height: 40px; flex: 0 0 40px; border: 1px solid var(--border-hi); border-radius: 6px;
   background: var(--bg); overflow: hidden; display: flex; align-items: center; justify-content: center;
@@ -349,6 +350,9 @@ button:hover { filter: brightness(1.1); }
 
 .overlay-body { display: flex; flex: 1; overflow: hidden; }
 .ovl-info { display: contents; }
+/* List is the primary focus: the info panels only appear once something is picked. */
+.overlay-body:not(.has-selection) .ovl-left,
+.overlay-body:not(.has-selection) .ovl-right { display: none; }
 .ovl-left { order: 1; } .ovl-center { order: 2; } .ovl-right { order: 3; }
 .ovl-center-scroll, .ovl-left, .ovl-right-body, .ovl-info { overscroll-behavior: contain; }
 
