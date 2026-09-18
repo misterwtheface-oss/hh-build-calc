@@ -504,7 +504,11 @@ table.player-xref { border-collapse: collapse; font-size: .9rem; }
   .overlay-body:not(.has-selection) .ovl-center { height: 100%; }
   .overlay-body:not(.has-selection) .ovl-info { display: none; }
   .build-body { flex-direction: column; }
-  .paperdoll { align-self: center; }
+  /* Fill the width on phones: stretch the paperdoll, push slot columns to the edges, and let the
+     centered silhouette grow into the freed middle space. */
+  .paperdoll { align-self: stretch; width: 100%; justify-content: space-between; gap: 0.5rem; }
+  .paperdoll-mid { flex: 1 1 auto; }
+  .paperdoll-mid img { max-width: min(220px, 46vw); }
   /* Two hero tiles per row on phones; icons wrap under the name so the narrow
      tile still fits (auto-fill minmax can't get 2 columns at phone widths). */
   .hero-group-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
