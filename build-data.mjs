@@ -115,9 +115,19 @@ const skillFrame = new Map(skillIcons.skills.map((s) => [s.name, { iconFrame: s.
 // Spells: name -> { icon, desc, school }. spelldata row =
 // [name, manaBaseCost, ?, iconFrame, ?, school, type, subtype, description] (spelldata_base_table.gml).
 // icon frame → spr_spellicons_ (copied to assets/spells/<frame>.png by build-assets.mjs).
+// spelldata row = [name, castVfxFrame, ?, iconFrame(3), rank/tier(4), school(5), type(6), targeting(7), desc(8)].
+// tier 1-3 = combat spell circle; tier==4 = adventure-map spell (7-day cooldown, no mana). Mana cost is
+// a GM-PRNG-seeded value appended at runtime (field [9]) — not statically derivable, so not shown.
 const spellRows = extractGmlArray(fs.readFileSync(path.join(EXTRACT, "data/spells/spelldata_base_table.gml"), "utf8"), "global.spelldata = ");
 const spellByName = new Map();
-for (const r of spellRows) if (!spellByName.has(r[0])) spellByName.set(r[0], { icon: `assets/spells/${r[3]}.png`, desc: r[8] || "", school: r[5] || "" });
+for (const r of spellRows) if (!spellByName.has(r[0])) spellByName.set(r[0], {
+  icon: `assets/spells/${r[3]}.png`, desc: r[8] || "", school: r[5] || "",
+  type: r[6] || "", targeting: r[7] || "", rank: Number(r[4]) || 0,
+});
+
+// Unit stats (data/units/unit_stats.json) + per-skill descriptions (data/skills/skill_descs.json).
+const unitStats = readJSON(path.join(EXTRACT, "data/units/unit_stats.json"));
+const skillDescs = readJSON(path.join(EXTRACT, "data/skills/skill_descs.json"));
 const skills = {};
 {
   const ref = new Set();
@@ -166,18 +176,24 @@ const classById = new Map(classes.map((c) => [c.id, c]));
 // specialty skill; masteryUnit = signature unit. All three get an icon for the grouped hero menu.
 const heroes = heroArr.map((h) => {
   const primarySkill = (h.skillset && h.skillset["Starts with"] && h.skillset["Starts with"][0]) || null;
+  const spell = h.startingSpell ? spellByName.get(h.startingSpell) : null;
   return {
     id: h.index, name: h.name, faction: h.faction, factionIndex: h.factionIndex,
     classId: h.classId, className: h.class, classType: h.classType, race: h.race,
     portraitFrame: h.index, icon: `assets/heroes/${h.index}.png`,
     startingSpell: h.startingSpell,
-    startingSpellIcon: h.startingSpell && spellByName.has(h.startingSpell) ? spellByName.get(h.startingSpell).icon : null,
-    startingSpellDesc: h.startingSpell && spellByName.has(h.startingSpell) ? spellByName.get(h.startingSpell).desc : null,
-    startingSpellSchool: h.startingSpell && spellByName.has(h.startingSpell) ? spellByName.get(h.startingSpell).school : null,
+    startingSpellIcon: spell ? spell.icon : null,
+    startingSpellDesc: spell ? spell.desc : null,
+    startingSpellSchool: spell ? spell.school : null,
+    startingSpellType: spell ? spell.type : null,
+    startingSpellTargeting: spell ? spell.targeting : null,
+    startingSpellRank: spell ? spell.rank : 0,
     masteryUnit: h.masteryUnit, masterySprite: h.masteryUnit ? (unitSprites[h.masteryUnit] || null) : null,
+    masteryUnitStats: h.masteryUnit ? (unitStats[h.masteryUnit] || null) : null,
     masteryUnitAlt: h.masteryUnitAlt || null, masteryUnitAltSprite: h.masteryUnitAlt ? (unitSprites[h.masteryUnitAlt] || null) : null,
     specialtySkill: h.specialtySkill, specialtyIcon: h.specialtySkill && skills[h.specialtySkill] ? skills[h.specialtySkill].icon : null,
-    specialtyDesc: h.specialtySkill && skills[h.specialtySkill] ? skills[h.specialtySkill].shortDesc : null,
+    specialtyDesc: h.specialtySkill && skillDescs[h.specialtySkill] ? skillDescs[h.specialtySkill].short : null,
+    specialtyDescLong: h.specialtySkill && skillDescs[h.specialtySkill] ? skillDescs[h.specialtySkill].long : null,
     primarySkill, primaryIcon: primarySkill && skills[primarySkill] ? skills[primarySkill].icon : null,
     unlockTier: h.unlockTier, unlockable: h.unlockable,
     skilltree: h.skilltree, skillset: h.skillset,

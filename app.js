@@ -396,28 +396,50 @@
     </div>`;
   }
 
-  // One context block inside the consolidated hero panel: leading icon + kind/name (+ optional
-  // school tag) + optional description. Returns "" when the element is absent for this hero.
-  function infoBlock(kind, name, iconSrc, desc, tag) {
+  const chip = (label) => (label || label === 0 ? `<span class="info-chip">${esc(label)}</span>` : "");
+  // One context block: leading icon + kind/name, an optional row of stat/meta chips, and an
+  // optional description. Returns "" when the element is absent for this hero.
+  function infoBlock({ kind, name, icon, meta, desc }) {
     if (!name) return "";
     return `<div class="info-block">
       <div class="info-block-head">
-        <span class="info-ico ${iconSrc ? "" : "info-ico-empty"}">${iconSrc ? `<img src="${esc(iconSrc)}" alt="" onerror="this.parentNode.classList.add('info-ico-empty');this.remove()">` : ""}</span>
+        <span class="info-ico ${icon ? "" : "info-ico-empty"}">${icon ? `<img src="${esc(icon)}" alt="" onerror="this.parentNode.classList.add('info-ico-empty');this.remove()">` : ""}</span>
         <span class="info-block-id">
           <span class="info-kind">${esc(kind)}</span>
-          <span class="info-name">${esc(name)}${tag ? ` <span class="info-tag">${esc(tag)}</span>` : ""}</span>
+          <span class="info-name">${esc(name)}</span>
         </span>
       </div>
+      ${meta ? `<div class="info-chips">${meta}</div>` : ""}
       ${desc ? `<p class="info-desc">${esc(desc)}</p>` : ""}
     </div>`;
   }
-  // Consolidated hero detail: centered portrait, faction banner, then Mastery-unit / Specialty /
-  // Starting-spell blocks. Mastery units without a resolved sprite show a dashed placeholder;
-  // per-rank/unit descriptions aren't in the extract, so only Specialty (~15 skills) and the
-  // starting spell carry description text today.
+  const RANK_ROMAN = ["", "I", "II", "III", "IV", "V"];
+  // Consolidated hero detail: centered portrait, faction banner, then Mastery-unit (with unit
+  // stats + abilities), Specialty (with per-rank scaling text), and Starting-spell (rank/school/
+  // type/targeting + cooldown for adventure spells) blocks.
   function heroInfoHTML(p) {
     if (!p) return `<div class="ovl-right-top detail-head"><h3>Details</h3></div>
       <div class="ovl-right-body"><p class="muted">Tap a hero to see details.</p></div>`;
+
+    const mu = p.masteryUnitStats;
+    const muMeta = mu ? [
+      mu.tier != null ? chip(`Tier ${mu.tier}`) : "",
+      mu.health != null ? chip(`${mu.health} HP`) : "",
+      mu.damage != null ? chip(`${mu.damage} DMG`) : "",
+      mu.growth != null ? chip(`+${mu.growth}/wk`) : "",
+      mu.attackType ? chip(mu.attackType) : "",
+    ].join("") : "";
+    const muDesc = mu && mu.abilities && mu.abilities.length ? `Abilities: ${mu.abilities.join(", ")}` : null;
+
+    const adv = p.startingSpellRank >= 4;
+    const spMeta = p.startingSpell ? [
+      chip(adv ? "Adventure" : `Rank ${RANK_ROMAN[Math.round(p.startingSpellRank)] || Math.round(p.startingSpellRank)}`),
+      chip(p.startingSpellSchool),
+      chip(p.startingSpellType),
+      p.startingSpellTargeting && p.startingSpellTargeting !== p.startingSpellType ? chip(p.startingSpellTargeting) : "",
+      adv ? chip("7-day cooldown") : "",
+    ].join("") : "";
+
     return `<div class="ovl-right-top detail-head">
         <div class="detail-icon"><img src="${esc(p.icon)}" alt="" onerror="this.style.visibility='hidden'"></div>
         <h3>${esc(p.name)}</h3>
@@ -425,9 +447,9 @@
       </div>
       <div class="ovl-right-body">
         <div class="primary-traits">${p.traits.map((id) => traitBanner(traitById.get(id))).join("")}</div>
-        ${infoBlock("Mastery unit", p.masteryUnit, p.masterySprite, null, null)}
-        ${infoBlock("Specialty", p.specialtySkill, p.specialtyIcon, p.specialtyDesc, null)}
-        ${infoBlock("Starting spell", p.startingSpell, p.startingSpellIcon, p.startingSpellDesc, p.startingSpellSchool)}
+        ${infoBlock({ kind: "Mastery unit", name: p.masteryUnit, icon: p.masterySprite, meta: muMeta, desc: muDesc })}
+        ${infoBlock({ kind: "Specialty", name: p.specialtySkill, icon: p.specialtyIcon, desc: p.specialtyDescLong || p.specialtyDesc })}
+        ${infoBlock({ kind: "Starting spell", name: p.startingSpell, icon: p.startingSpellIcon, meta: spMeta, desc: p.startingSpellDesc })}
         <div class="detail-meta muted">Race: ${esc(p.race || "—")} · Unlock tier: ${esc(String(p.unlockTier))}</div>
       </div>`;
   }

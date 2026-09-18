@@ -403,7 +403,12 @@ button:hover { filter: brightness(1.1); }
 .info-kind { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); }
 .info-name { font-weight: 600; color: var(--text); }
 .info-tag { font-size: 0.66rem; padding: 1px 5px; border-radius: 4px; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); }
-.info-desc { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.35rem; line-height: 1.35; }
+.info-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.45rem; }
+.info-chip {
+  font-size: 0.68rem; padding: 2px 7px; border-radius: 999px; white-space: nowrap;
+  background: var(--bg); border: 1px solid var(--border); color: var(--text-muted); font-variant-numeric: tabular-nums;
+}
+.info-desc { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.4rem; line-height: 1.4; }
 .detail-meta { font-size: 0.75rem; margin-top: 0.6rem; text-align: center; }
 
 /* ═══════════ TRAIT ASSOCIATIONS ═══════════ */
