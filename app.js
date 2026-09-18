@@ -577,10 +577,16 @@
     if (node && skill !== node.major && rankOf(node.major.name) < (skill.rankReq || 0)) return false;
     return true;
   }
-  // short reason a not-yet-allocated skill is locked ("" if allocatable)
+  // full lock reason (tooltip): "Requires level 7" / "Requires Strategist rank II"
   function lockReason(skill, node) {
+    if (heroLevel() < (skill.lvlReq || 0)) return `Requires level ${skill.lvlReq}`;
+    if (node && skill !== node.major && rankOf(node.major.name) < (skill.rankReq || 0)) return `Requires ${node.major.name} rank ${SK_ROMAN[skill.rankReq] || skill.rankReq}`;
+    return "";
+  }
+  // compact fixed-size gate badge: "Lv 7" (level) or "▲ III" (node's major skill at that rank)
+  function gateBadge(skill, node) {
     if (heroLevel() < (skill.lvlReq || 0)) return `Lv ${skill.lvlReq}`;
-    if (node && skill !== node.major && rankOf(node.major.name) < (skill.rankReq || 0)) return `${node.major.name} ${SK_ROMAN[skill.rankReq] || skill.rankReq}`;
+    if (node && skill !== node.major && rankOf(node.major.name) < (skill.rankReq || 0)) return `▲ ${SK_ROMAN[skill.rankReq] || skill.rankReq}`;
     return "";
   }
   function findSkill(hero, name) {
@@ -625,26 +631,32 @@
     const nodes = heroNodes(hero);
     const level = heroLevel(), points = level - 1;
 
-    const cellHTML = (s, node, isMajor) => {
+    // one skill as a ROW: icon · name+effect · a fixed-width gate/status badge · rank stepper.
+    const rowHTML = (s, node, isMajor) => {
       const r = rankOf(s.name), max = s.maxRanks, can = canInc(s, node);
-      const lock = r === 0 ? lockReason(s, node) : "";
-      const pips = Array.from({ length: max }, (_, i) => `<span class="tk-pip ${i < r ? "on" : ""}"></span>`).join("");
-      return `<div class="tk-node ${isMajor ? "tk-major" : ""} ${r > 0 ? "allocated" : ""} ${r === 0 && !can ? "locked" : ""}" title="${esc(s.name)}${s.desc ? " — " + esc(s.desc) : ""}">
-        <div class="tk-icon">${s.icon ? `<img src="${esc(s.icon)}" alt="" onerror="this.style.display='none'">` : `<span class="tk-ico-fallback">${esc(s.name[0])}</span>`}</div>
-        <div class="tk-name">${esc(s.name)}</div>
-        <div class="tk-pips">${pips}</div>
-        <div class="tk-ctrl">
-          <button class="tk-btn" data-action="skill-dec" data-skill="${esc(s.name)}" ${r <= 0 ? "disabled" : ""}>−</button>
-          <span class="tk-rank">${r}/${max}</span>
-          <button class="tk-btn" data-action="skill-inc" data-skill="${esc(s.name)}" ${r >= max || !can ? "disabled" : ""}>+</button>
-        </div>
-        ${lock ? `<div class="tk-req no">${esc(lock)}</div>` : (r >= max ? `<div class="tk-req max">MAX</div>` : `<div class="tk-req ok">&nbsp;</div>`)}
+      const gate = r === 0 && !can;                 // locked by level / major-rank requirement
+      const badge = r >= max ? `<span class="tk-badge max">MAX</span>`
+        : gate ? `<span class="tk-badge lock" title="${esc(lockReason(s, node))}">${esc(gateBadge(s, node))}</span>`
+        : `<span class="tk-badge rank">${r}/${max}</span>`;
+      return `<div class="tk-row ${isMajor ? "is-major" : ""} ${r > 0 ? "allocated" : ""} ${gate ? "locked" : ""}">
+        <span class="tk-row-ico">${s.icon ? `<img src="${esc(s.icon)}" alt="" onerror="this.style.display='none'">` : `<span class="tk-ico-fallback">${esc(s.name[0] || "?")}</span>`}</span>
+        <span class="tk-row-info">
+          <span class="tk-row-name">${esc(s.name)}</span>
+          ${s.desc ? `<span class="tk-row-desc">${esc(s.desc)}</span>` : ""}
+        </span>
+        <span class="tk-row-side">
+          ${badge}
+          <span class="tk-ctrl">
+            <button class="tk-btn" data-action="skill-dec" data-skill="${esc(s.name)}" ${r <= 0 ? "disabled" : ""}>−</button>
+            <button class="tk-btn" data-action="skill-inc" data-skill="${esc(s.name)}" ${r >= max || !can ? "disabled" : ""}>+</button>
+          </span>
+        </span>
       </div>`;
     };
     const nodesHTML = nodes.map((node) => `
       <section class="tk-nodegroup">
-        <div class="tk-nodegroup-major">${cellHTML(node.major, node, true)}</div>
-        <div class="tk-nodegroup-subs">${node.subs.map((s) => cellHTML(s, node, false)).join("")}</div>
+        ${rowHTML(node.major, node, true)}
+        <div class="tk-nodegroup-subs">${node.subs.map((s) => rowHTML(s, node, false)).join("")}</div>
       </section>`).join("");
 
     const root = document.getElementById("detail-overlay-root");
@@ -663,7 +675,6 @@
         </div>
         <div class="overlay-body"><div class="tk-scroll">
           ${nodes.length ? nodesHTML : `<p class="muted">This hero has no skill-tree data.</p>`}
-          <p class="tk-note muted">Each node is a major skill with its sub-skills. Raising anything costs a level; a sub-skill unlocks at its required level and once its node's major skill reaches the required rank.</p>
         </div></div>
         <div class="overlay-footer"><button data-action="close-detail">Done</button></div>
       </div>`;

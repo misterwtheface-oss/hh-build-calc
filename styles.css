@@ -216,12 +216,28 @@ button:hover { filter: brightness(1.1); }
 .tk-mastery-txt { display: flex; flex-direction: column; }
 .tk-note { font-size: 0.72rem; margin-top: 0.8rem; text-align: center; }
 
-/* 6-node skill-tree layout (current model): each node = major/class skill + its sub-skills */
-.tk-nodegroup { border: 1px solid var(--border); border-radius: 10px; background: var(--surface2); padding: 0.55rem 0.6rem 0.7rem; margin-bottom: 0.7rem; }
-.tk-nodegroup-major { display: flex; justify-content: center; margin-bottom: 0.55rem; padding-bottom: 0.55rem; border-bottom: 1px solid var(--border); }
-.tk-nodegroup-subs { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; }
-.tk-node.tk-major { width: 100px; border-color: var(--border-hi); background: linear-gradient(180deg, #3a2c1c, var(--surface)); box-shadow: 0 0 0 1px var(--border-hi); }
-.tk-node.tk-major .tk-name { font-weight: 700; color: var(--border-hi); }
+/* 6-node skill tree (current model): each node = a major-skill ROW + its sub-skill rows.
+   Rows show the skill's effect text; a fixed-width badge shows the rank, the level/major-rank gate,
+   or MAX — so every row is the same shape regardless of state. */
+.tk-nodegroup { border: 1px solid var(--border); border-radius: 10px; background: var(--surface2); padding: 0.4rem; margin-bottom: 0.6rem; }
+.tk-nodegroup-subs { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.3rem; }
+.tk-row { display: flex; align-items: center; gap: 0.6rem; margin: 0; padding: 0.4rem 0.5rem; border-radius: 8px; background: var(--surface); border: 1px solid transparent; }
+.tk-row.is-major { border-color: var(--border-hi); background: linear-gradient(180deg, #3a2c1c, var(--surface)); }
+.tk-row.allocated { box-shadow: inset 3px 0 0 var(--gold); }
+.tk-row.allocated:not(.is-major) { border-color: var(--border); }
+.tk-row.locked { opacity: 0.72; }
+.tk-row-ico { width: 40px; height: 40px; flex: 0 0 40px; display: flex; align-items: center; justify-content: center; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.tk-row-ico img { width: 88%; height: 88%; object-fit: contain; image-rendering: pixelated; }
+.tk-row.is-major .tk-row-ico { border-color: var(--border-hi); }
+.tk-row-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.tk-row-name { font-weight: 600; color: var(--text); font-size: 0.9rem; }
+.tk-row.is-major .tk-row-name { color: var(--border-hi); }
+.tk-row-desc { font-size: 0.74rem; color: var(--text-dim); line-height: 1.3; }
+.tk-row-side { flex: 0 0 auto; display: flex; align-items: center; gap: 0.5rem; }
+.tk-badge { width: 48px; flex: 0 0 48px; text-align: center; font-size: 0.66rem; font-weight: 600; font-variant-numeric: tabular-nums; padding: 3px 0; border-radius: 5px; white-space: nowrap; }
+.tk-badge.rank { color: var(--text-muted); background: var(--bg); border: 1px solid var(--border); }
+.tk-badge.lock { color: var(--neg); background: rgba(209, 90, 74, 0.12); border: 1px solid rgba(209, 90, 74, 0.35); }
+.tk-badge.max { color: var(--gold); background: rgba(232, 192, 90, 0.12); border: 1px solid rgba(232, 192, 90, 0.35); }
 
 @media (min-width: 640px) {
   .tk-node { width: 84px; }
