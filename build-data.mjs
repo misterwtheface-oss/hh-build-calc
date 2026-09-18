@@ -110,7 +110,14 @@ const SKILLSETDATA = extractGmlArray(fs.readFileSync(path.join(EXTRACT, "code/gm
 const ssMeta = new Map();
 for (const row of SKILLSETDATA) if (!ssMeta.has(row[0])) ssMeta.set(row[0], { maxRanks: Number(row[2]) || 1, category: row[1] });
 const skillIcons = readJSON(path.join(EXTRACT, "data/skills/skills_consolidated.json"));
-const skillFrame = new Map(skillIcons.skills.map((s) => [s.name, { iconFrame: s.iconFrame, maxRanks: s.maxRanks }]));
+const skillFrame = new Map(skillIcons.skills.map((s) => [s.name, { iconFrame: s.iconFrame, maxRanks: s.maxRanks, shortDesc: s.shortDesc || null }]));
+
+// Spells: name -> { icon, desc, school }. spelldata row =
+// [name, manaBaseCost, ?, iconFrame, ?, school, type, subtype, description] (spelldata_base_table.gml).
+// icon frame → spr_spellicons_ (copied to assets/spells/<frame>.png by build-assets.mjs).
+const spellRows = extractGmlArray(fs.readFileSync(path.join(EXTRACT, "data/spells/spelldata_base_table.gml"), "utf8"), "global.spelldata = ");
+const spellByName = new Map();
+for (const r of spellRows) if (!spellByName.has(r[0])) spellByName.set(r[0], { icon: `assets/spells/${r[3]}.png`, desc: r[8] || "", school: r[5] || "" });
 const skills = {};
 {
   const ref = new Set();
@@ -126,6 +133,7 @@ const skills = {};
       icon: f ? `assets/skills/${f.iconFrame}.png` : null,
       maxRanks: meta ? meta.maxRanks : (f ? f.maxRanks : 3),
       category: meta ? meta.category : null,
+      shortDesc: f ? f.shortDesc : null,   // only ~15 skills carry summary text in the extract
     };
   }
 }
@@ -163,8 +171,12 @@ const heroes = heroArr.map((h) => {
     classId: h.classId, className: h.class, classType: h.classType, race: h.race,
     portraitFrame: h.index, icon: `assets/heroes/${h.index}.png`,
     startingSpell: h.startingSpell,
+    startingSpellIcon: h.startingSpell && spellByName.has(h.startingSpell) ? spellByName.get(h.startingSpell).icon : null,
+    startingSpellDesc: h.startingSpell && spellByName.has(h.startingSpell) ? spellByName.get(h.startingSpell).desc : null,
+    startingSpellSchool: h.startingSpell && spellByName.has(h.startingSpell) ? spellByName.get(h.startingSpell).school : null,
     masteryUnit: h.masteryUnit, masterySprite: h.masteryUnit ? (unitSprites[h.masteryUnit] || null) : null,
     specialtySkill: h.specialtySkill, specialtyIcon: h.specialtySkill && skills[h.specialtySkill] ? skills[h.specialtySkill].icon : null,
+    specialtyDesc: h.specialtySkill && skills[h.specialtySkill] ? skills[h.specialtySkill].shortDesc : null,
     primarySkill, primaryIcon: primarySkill && skills[primarySkill] ? skills[primarySkill].icon : null,
     unlockTier: h.unlockTier, unlockable: h.unlockable,
     skilltree: h.skilltree, skillset: h.skillset,
@@ -223,6 +235,7 @@ for (const [name, s] of Object.entries(skills)) if (s.icon && assetMiss(s.icon))
 for (const h of heroes) {
   if (h.masterySprite && assetMiss(h.masterySprite)) warnings.push(`hero "${h.name}" mastery sprite ${h.masterySprite} missing`);
   if (h.specialtyIcon && assetMiss(h.specialtyIcon)) warnings.push(`hero "${h.name}" specialty icon ${h.specialtyIcon} missing`);
+  if (h.startingSpellIcon && assetMiss(h.startingSpellIcon)) warnings.push(`hero "${h.name}" starting-spell icon ${h.startingSpellIcon} missing`);
 }
 // heroes: class resolves, traits resolve, portrait exists
 for (const h of heroes) {

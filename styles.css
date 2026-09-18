@@ -380,6 +380,32 @@ button:hover { filter: brightness(1.1); }
 .ovl-right-body { flex: 1; overflow-y: auto; padding: 0.75rem; }
 .ovl-right-top h3 { font-size: 1rem; color: var(--text); }
 
+/* consolidated single info panel (hero selector): centered portrait + context blocks */
+.overlay-body.solo-info .ovl-left { display: none; }
+.overlay-body.solo-info .ovl-right { width: 340px; }
+.detail-head { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; }
+.detail-icon {
+  width: 88px; height: 88px; border: 2px solid var(--border-hi); border-radius: 10px;
+  background: var(--bg); display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.detail-icon img { width: 100%; height: 100%; object-fit: contain; }
+.detail-head h3 { font-size: 1.1rem; color: var(--text); }
+.detail-sub { font-size: 0.8rem; }
+.info-block { border: 1px solid var(--border); border-radius: 8px; background: var(--surface2); padding: 0.5rem 0.6rem; margin-top: 0.5rem; }
+.info-block-head { display: flex; align-items: center; gap: 0.5rem; }
+.info-ico {
+  width: 40px; height: 40px; flex: 0 0 40px; border-radius: 6px; background: var(--bg);
+  border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.info-ico img { width: 88%; height: 88%; object-fit: contain; image-rendering: pixelated; }
+.info-ico-empty { border-style: dashed; opacity: 0.55; }
+.info-block-id { display: flex; flex-direction: column; min-width: 0; }
+.info-kind { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); }
+.info-name { font-weight: 600; color: var(--text); }
+.info-tag { font-size: 0.66rem; padding: 1px 5px; border-radius: 4px; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); }
+.info-desc { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.35rem; line-height: 1.35; }
+.detail-meta { font-size: 0.75rem; margin-top: 0.6rem; text-align: center; }
+
 /* ═══════════ TRAIT ASSOCIATIONS ═══════════ */
 .trait-banner { display: flex; align-items: center; gap: 6px; cursor: pointer; margin-bottom: 4px; }
 .trait-banner-icon { width: 20px; height: 20px; flex-shrink: 0; }
@@ -443,9 +469,10 @@ table.player-xref { border-collapse: collapse; font-size: .9rem; }
     width: 100vw; max-width: none; height: 100dvh; max-height: 100dvh; border: none; border-radius: 0;
   }
   .overlay-body { flex-direction: column; }
-  .ovl-center { flex: none; height: 50vh; }
+  /* List on TOP (the focus), info panel docked at the BOTTOM. */
+  .ovl-center { flex: none; height: 50vh; order: 0; }
   .ovl-center-scroll { -webkit-overflow-scrolling: touch; }
-  .ovl-info { display: flex; flex-direction: column; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .ovl-info { display: flex; flex-direction: column; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; order: 1; }
   .ovl-left, .ovl-right, .ovl-right-body { overflow: visible; width: auto; border: none; }
   .ovl-right { order: 0; } .ovl-left { order: 1; }
   .overlay-body:not(.has-selection) .ovl-center { height: 100%; }

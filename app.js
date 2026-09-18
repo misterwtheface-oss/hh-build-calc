@@ -283,11 +283,13 @@
 
   // ═══ SELECTOR OVERLAY (#overlay-root) — hero or slot(artifact) ═══
   function openHeroOverlay(faction) {
-    state.ovl = { kind: "hero", pending: state.build.heroId, search: "", faction: faction || null };
+    // touched=false → the info panel stays closed on entry (list is the focus); it opens only
+    // once the user actively taps a card. The current pick is still highlighted in the list.
+    state.ovl = { kind: "hero", pending: state.build.heroId, search: "", faction: faction || null, touched: false };
     openOverlayShell(faction ? `Choose a ${faction} hero` : "Choose a hero");
   }
   function openSlotOverlay(slotIndex) {
-    state.ovl = { kind: "artifact", slotIndex, pending: state.build.equipment[slotIndex], search: "" };
+    state.ovl = { kind: "artifact", slotIndex, pending: state.build.equipment[slotIndex], search: "", touched: false };
     openOverlayShell(`Choose artifact — slot ${slotIndex + 1}`);
   }
   function openOverlayShell(title) {
@@ -327,22 +329,14 @@
       grid.className = "ovl-grid hero-groups";
       grid.innerHTML = list.length ? heroGroupsHTML(list, !fac) : `<p class="muted">No matches.</p>`;
       const p = state.ovl.pending != null ? heroById.get(state.ovl.pending) : null;
-      panel.querySelector(".ovl-left").innerHTML = `<h3>Hero</h3>` + (p
-        ? `<p><b>${esc(p.name)}</b></p><p class="muted">${esc(p.className)} (${esc(p.classType)})</p>
-           <p class="muted">Faction: ${esc(p.faction)}</p><p class="muted">Race: ${esc(p.race || "—")}</p>
-           <p class="muted">Unlock tier: ${esc(String(p.unlockTier))}</p>`
-        : `<p class="muted">Select a hero.</p>`);
-      panel.querySelector(".ovl-right").innerHTML = p
-        ? `<div class="ovl-right-top"><h3>${esc(p.name)}</h3></div>
-           <div class="ovl-right-body">
-             ${p.traits.map((id) => traitBanner(traitById.get(id))).join("")}
-             <p class="muted">Mastery unit: ${esc(p.masteryUnit || "—")}</p>
-             <p class="muted">Specialty: ${esc(p.specialtySkill || "—")}</p>
-             <p class="muted">Starting spell: ${esc(p.startingSpell || "—")}</p>
-           </div>`
-        : `<div class="ovl-right-top"><h3>Details</h3></div><div class="ovl-right-body"><p class="muted">Select a hero to see details.</p></div>`;
-      panel.querySelector(".overlay-body").classList.toggle("has-selection", !!p);
+      // Single consolidated info panel (centered portrait + context blocks); ovl-left is emptied
+      // and overlay-body gets .solo-info so only the one panel shows beside the list.
+      panel.querySelector(".ovl-left").innerHTML = "";
+      panel.querySelector(".ovl-right").innerHTML = heroInfoHTML(p);
+      panel.querySelector(".overlay-body").classList.add("solo-info");
+      panel.querySelector(".overlay-body").classList.toggle("has-selection", !!p && state.ovl.touched);
     } else {
+      panel.querySelector(".overlay-body").classList.remove("solo-info");
       const slot = state.ovl.slotIndex + 1;
       const list = DATA.artifacts.filter((a) => a.slot === slot).filter((a) => !q || a.name.toLowerCase().includes(q));
       const grid = panel.querySelector(".ovl-grid");
@@ -360,7 +354,7 @@
              ${p.setId ? `<p class="muted">Set: ${esc(setById.get(p.setId).name)} (needs ${setById.get(p.setId).threshold})</p>` : ""}
            </div>`
         : `<div class="ovl-right-top"><h3>Details</h3></div><div class="ovl-right-body"><p class="muted">Select an artifact to see details.</p></div>`;
-      panel.querySelector(".overlay-body").classList.toggle("has-selection", !!p);
+      panel.querySelector(".overlay-body").classList.toggle("has-selection", !!p && state.ovl.touched);
     }
     SCROLLERS.forEach((sel, i) => { const el = panel.querySelector(sel); if (el) el.scrollTop = saved[i]; });
   }
@@ -400,6 +394,42 @@
         ${miniIcon(h.primaryIcon, h.primarySkill || "—", "mini-skill")}
       </span>
     </div>`;
+  }
+
+  // One context block inside the consolidated hero panel: leading icon + kind/name (+ optional
+  // school tag) + optional description. Returns "" when the element is absent for this hero.
+  function infoBlock(kind, name, iconSrc, desc, tag) {
+    if (!name) return "";
+    return `<div class="info-block">
+      <div class="info-block-head">
+        <span class="info-ico ${iconSrc ? "" : "info-ico-empty"}">${iconSrc ? `<img src="${esc(iconSrc)}" alt="" onerror="this.parentNode.classList.add('info-ico-empty');this.remove()">` : ""}</span>
+        <span class="info-block-id">
+          <span class="info-kind">${esc(kind)}</span>
+          <span class="info-name">${esc(name)}${tag ? ` <span class="info-tag">${esc(tag)}</span>` : ""}</span>
+        </span>
+      </div>
+      ${desc ? `<p class="info-desc">${esc(desc)}</p>` : ""}
+    </div>`;
+  }
+  // Consolidated hero detail: centered portrait, faction banner, then Mastery-unit / Specialty /
+  // Starting-spell blocks. Mastery units without a resolved sprite show a dashed placeholder;
+  // per-rank/unit descriptions aren't in the extract, so only Specialty (~15 skills) and the
+  // starting spell carry description text today.
+  function heroInfoHTML(p) {
+    if (!p) return `<div class="ovl-right-top detail-head"><h3>Details</h3></div>
+      <div class="ovl-right-body"><p class="muted">Tap a hero to see details.</p></div>`;
+    return `<div class="ovl-right-top detail-head">
+        <div class="detail-icon"><img src="${esc(p.icon)}" alt="" onerror="this.style.visibility='hidden'"></div>
+        <h3>${esc(p.name)}</h3>
+        <div class="detail-sub muted">${esc(p.className)} · ${esc(p.classType)} · ${esc(p.faction)}</div>
+      </div>
+      <div class="ovl-right-body">
+        <div class="primary-traits">${p.traits.map((id) => traitBanner(traitById.get(id))).join("")}</div>
+        ${infoBlock("Mastery unit", p.masteryUnit, p.masterySprite, null, null)}
+        ${infoBlock("Specialty", p.specialtySkill, p.specialtyIcon, p.specialtyDesc, null)}
+        ${infoBlock("Starting spell", p.startingSpell, p.startingSpellIcon, p.startingSpellDesc, p.startingSpellSchool)}
+        <div class="detail-meta muted">Race: ${esc(p.race || "—")} · Unlock tier: ${esc(String(p.unlockTier))}</div>
+      </div>`;
   }
 
   function cardHTML(id, icon, name, selected, qColor) {
@@ -670,7 +700,7 @@
     const el = e.target.closest("[data-action]");
     if (!el) { if (e.target.id === "overlay-root") closeOverlay(false); return; }
     switch (el.dataset.action) {
-      case "pick": { const id = el.dataset.id; state.ovl.pending = state.ovl.pending === id || (state.ovl.kind === "hero" && String(state.ovl.pending) === id) ? null : (state.ovl.kind === "hero" ? Number(id) : id); refreshOverlay(); break; }
+      case "pick": { const id = el.dataset.id; state.ovl.touched = true; state.ovl.pending = state.ovl.pending === id || (state.ovl.kind === "hero" && String(state.ovl.pending) === id) ? null : (state.ovl.kind === "hero" ? Number(id) : id); refreshOverlay(); break; }
       case "detail": openArtifactDetail(el.dataset.id); break;
       case "nav-trait": openTraitDetail(el.dataset.trait); break;
       case "cancel": closeOverlay(false); break;

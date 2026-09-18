@@ -86,6 +86,16 @@ for (const name of refSkills) {
   if (frame != null) copyFrame("spr_skills_RR", frame, "skills", String(frame));
 }
 
+// spell icons: copy the spr_spellicons_ frame for every hero starting spell.
+// spelldata row = [name, mana, ?, iconFrame, …]; sheet files are spr_spellicons__<frame>.png.
+const spellRows = extractGmlArray(fs.readFileSync(path.join(EXTRACT, "data", "spells", "spelldata_base_table.gml"), "utf8"), "global.spelldata = ");
+const spellFrameByName = new Map(spellRows.map((r) => [r[0], r[3]]));
+const refSpells = new Set(heroArr.map((h) => h.startingSpell).filter(Boolean));
+for (const name of refSpells) {
+  const frame = spellFrameByName.get(name);
+  if (frame != null) copyFrame("spr_spellicons_", frame, "spells", String(frame));
+}
+
 console.log(`build-assets: copied ${copied} sprite frames into ${ASSETS}/.`);
 if (missing.length) {
   console.warn(`⚠ ${missing.length} source frame(s) missing in the extract:`);
